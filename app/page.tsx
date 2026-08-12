@@ -53,7 +53,7 @@ interface FilterChipItem {
 
 export default function DashboardPage() {
   const [activeTab, setActiveTab] = useState<string>('dashboard');
-  const [calendarViewMode, setCalendarViewMode] = useState<CalendarViewMode>('grid');
+  const [calendarViewMode, setCalendarViewMode] = useState<CalendarViewMode>('table');
   const [events, setEvents] = useState<EnrichedEvent[]>([]);
   const [awarenessEvents, setAwarenessEvents] = useState<AwarenessEvent[]>([]);
   const [tasks, setTasks] = useState<TaskItem[]>([]);

@@ -48,7 +48,7 @@ interface FilterChipItem {
 export default function CalendarPage() {
   const [events, setEvents] = useState<EnrichedEvent[]>([]);
   const [awarenessEvents, setAwarenessEvents] = useState<AwarenessEvent[]>([]);
-  const [viewMode, setViewMode] = useState<CalendarViewMode>('grid');
+  const [viewMode, setViewMode] = useState<CalendarViewMode>('table');
   const [quickFilter, setQuickFilter] = useState<FilterChipId>('all');
   const [loading, setLoading] = useState(true);
 

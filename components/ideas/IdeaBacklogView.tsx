@@ -40,8 +40,8 @@ export function IdeaBacklogView() {
   const [awarenessEvents, setAwarenessEvents] = useState<AwarenessEvent[]>(INITIAL_AWARENESS_EVENTS);
   const [loading, setLoading] = useState(false);
 
-  // View mode: Grid vs. Table
-  const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
+  // View mode: Grid vs. Table (defaults to table view)
+  const [viewMode, setViewMode] = useState<'grid' | 'table'>('table');
 
   // Modals
   const [isPitchModalOpen, setIsPitchModalOpen] = useState(false);

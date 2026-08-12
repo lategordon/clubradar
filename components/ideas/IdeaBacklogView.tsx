@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { IdeaCard } from '@/components/ideas/IdeaCard';
 import { PitchIdeaModal } from '@/components/ideas/PitchIdeaModal';
 import { UpgradeIdeaModal } from '@/components/ideas/UpgradeIdeaModal';
@@ -29,11 +29,40 @@ import {
   Trash2,
   Edit2,
   Check,
+  GripVertical,
+  Columns3,
+  SlidersHorizontal,
+  ChevronDown,
+  Info,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+
+export interface VisibleIdeaColumns {
+  votes: boolean;
+  concept: boolean;
+  vendor: boolean;
+  timeframe: boolean;
+  region: boolean;
+  notes: boolean;
+  status: boolean;
+  submitter: boolean;
+  actions: boolean;
+}
+
+const DEFAULT_VISIBLE_COLUMNS: VisibleIdeaColumns = {
+  votes: true,
+  concept: true,
+  vendor: true,
+  timeframe: true,
+  region: true,
+  notes: true,
+  status: true,
+  submitter: true,
+  actions: true,
+};
 
 export function IdeaBacklogView() {
   const [ideas, setIdeas] = useState<EventIdea[]>(INITIAL_EVENT_IDEAS);
@@ -47,16 +76,65 @@ export function IdeaBacklogView() {
   const [isPitchModalOpen, setIsPitchModalOpen] = useState(false);
   const [selectedIdeaForUpgrade, setSelectedIdeaForUpgrade] = useState<EventIdea | null>(null);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [activeNoteModalIdea, setActiveNoteModalIdea] = useState<EventIdea | null>(null);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('All');
   const [regionFilter, setRegionFilter] = useState<string>('All');
-  const [sortBy, setSortBy] = useState<'upvotes' | 'newest' | 'title'>('upvotes');
+  const [sortBy, setSortBy] = useState<'custom' | 'upvotes' | 'newest' | 'title'>('custom');
+
+  // Drag and Drop state
+  const [draggedIdeaId, setDraggedIdeaId] = useState<string | null>(null);
+  const [dragOverIdeaId, setDragOverIdeaId] = useState<string | null>(null);
+
+  // Column visibility state & popover
+  const [visibleColumns, setVisibleColumns] = useState<VisibleIdeaColumns>(DEFAULT_VISIBLE_COLUMNS);
+  const [isColumnDropdownOpen, setIsColumnDropdownOpen] = useState(false);
+  const columnDropdownRef = useRef<HTMLDivElement>(null);
 
   // Inline editing state for table
   const [editingIdeaId, setEditingIdeaId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<EventIdea>>({});
+
+  // Close column dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (columnDropdownRef.current && !columnDropdownRef.current.contains(event.target as Node)) {
+        setIsColumnDropdownOpen(false);
+      }
+    }
+    if (isColumnDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isColumnDropdownOpen]);
+
+  // Load Column Customizer from LocalStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('nyu_alumni_ideas_visible_columns');
+      if (saved) {
+        setVisibleColumns(JSON.parse(saved));
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const toggleColumn = (col: keyof VisibleIdeaColumns) => {
+    setVisibleColumns((prev) => {
+      const next = { ...prev, [col]: !prev[col] };
+      try {
+        localStorage.setItem('nyu_alumni_ideas_visible_columns', JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   // Load Data
   const loadData = async () => {
@@ -126,7 +204,56 @@ export function IdeaBacklogView() {
     await loadData();
   };
 
-  // Filtered Ideas
+  // Drag and Drop Logic
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    setDraggedIdeaId(id);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', id);
+  };
+
+  const handleDragOver = (e: React.DragEvent, id: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIdeaId !== id) {
+      setDragOverIdeaId(id);
+    }
+  };
+
+  const handleDrop = (targetId: string) => {
+    if (!draggedIdeaId || draggedIdeaId === targetId) {
+      setDraggedIdeaId(null);
+      setDragOverIdeaId(null);
+      return;
+    }
+
+    const currentIdeas = [...ideas];
+    const sourceIdx = currentIdeas.findIndex((i) => i.id === draggedIdeaId);
+    const targetIdx = currentIdeas.findIndex((i) => i.id === targetId);
+
+    if (sourceIdx !== -1 && targetIdx !== -1) {
+      const [movedIdea] = currentIdeas.splice(sourceIdx, 1);
+      currentIdeas.splice(targetIdx, 0, movedIdea);
+      setIdeas(currentIdeas);
+      setSortBy('custom');
+
+      // Persist reordered list
+      try {
+        localStorage.setItem('nyu_alumni_ideas_store_v2', JSON.stringify(currentIdeas));
+      } catch {
+        // ignore
+      }
+    }
+
+    setDraggedIdeaId(null);
+    setDragOverIdeaId(null);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIdeaId(null);
+    setDragOverIdeaId(null);
+  };
+
+  // Filtered and Sorted Ideas
   const filteredIdeas = useMemo(() => {
     const result = ideas.filter((idea) => {
       if (searchQuery.trim()) {
@@ -147,21 +274,23 @@ export function IdeaBacklogView() {
       return true;
     });
 
-    result.sort((a, b) => {
-      if (sortBy === 'upvotes') return b.upvotes - a.upvotes;
-      if (sortBy === 'newest') return b.created_at.localeCompare(a.created_at);
-      if (sortBy === 'title') return a.title.localeCompare(b.title);
-      return 0;
-    });
+    if (sortBy === 'upvotes') {
+      result.sort((a, b) => b.upvotes - a.upvotes);
+    } else if (sortBy === 'newest') {
+      result.sort((a, b) => b.created_at.localeCompare(a.created_at));
+    } else if (sortBy === 'title') {
+      result.sort((a, b) => a.title.localeCompare(b.title));
+    }
 
     return result;
   }, [ideas, searchQuery, statusFilter, regionFilter, sortBy]);
 
   const readyCount = ideas.filter((i) => i.status === 'Ready to Plan').length;
   const promotedCount = ideas.filter((i) => i.status === 'Promoted').length;
+  const activeColCount = Object.values(visibleColumns).filter(Boolean).length;
 
   return (
-    <div className="w-full space-y-6">
+    <div className="w-full space-y-5">
       {/* Header Banner */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -172,27 +301,73 @@ export function IdeaBacklogView() {
             <span>Event Ideas & Brainstorming Incubator</span>
           </h2>
           <p className="text-xs font-medium text-slate-500 mt-1">
-            Capture potential event concepts, vendor partnerships, target time periods, and notes. Vote and upgrade ideas to the official calendar.
+            Capture potential event concepts, vendor partnerships, target time periods, and notes. Drag and drop rows to reorder priorities.
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          {/* View Mode Toggle */}
-          <div className="flex items-center rounded-lg border border-slate-200 bg-white p-1 shadow-2xs">
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Column Customizer Popover */}
+          <div className="relative" ref={columnDropdownRef}>
             <button
               type="button"
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                "px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer",
-                viewMode === 'grid'
-                  ? "bg-[#57068c] text-white shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
-              )}
-              title="Cards Grid View"
+              onClick={() => setIsColumnDropdownOpen(!isColumnDropdownOpen)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-bold text-slate-700 shadow-2xs hover:bg-slate-50 cursor-pointer"
             >
-              <LayoutGrid className="h-3.5 w-3.5" />
-              <span>Cards</span>
+              <Columns3 className="h-3.5 w-3.5 text-purple-700" />
+              <span>Columns ({activeColCount})</span>
+              <ChevronDown className="h-3 w-3 text-slate-400" />
             </button>
+
+            {isColumnDropdownOpen && (
+              <div className="absolute right-0 top-full mt-1.5 z-50 w-56 rounded-xl border border-slate-200 bg-white p-2.5 shadow-xl space-y-1.5">
+                <div className="flex items-center justify-between px-2 pb-1.5 border-b border-slate-100">
+                  <span className="text-[11px] font-bold text-slate-900 uppercase tracking-wider">
+                    Toggle Columns
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setVisibleColumns(DEFAULT_VISIBLE_COLUMNS)}
+                    className="text-[10px] font-bold text-[#57068c] hover:underline"
+                  >
+                    Reset
+                  </button>
+                </div>
+
+                <div className="space-y-1 max-h-64 overflow-y-auto pt-1">
+                  {[
+                    { id: 'votes', label: 'Votes & Ranking' },
+                    { id: 'concept', label: 'Idea & Concept' },
+                    { id: 'vendor', label: 'Vendor / Venue' },
+                    { id: 'timeframe', label: 'Target Timeframe' },
+                    { id: 'region', label: 'Region' },
+                    { id: 'notes', label: 'Planning Notes' },
+                    { id: 'status', label: 'Status' },
+                    { id: 'submitter', label: 'Pitched By' },
+                    { id: 'actions', label: 'Actions' },
+                  ].map((col) => {
+                    const colKey = col.id as keyof VisibleIdeaColumns;
+                    return (
+                      <label
+                        key={col.id}
+                        className="flex items-center gap-2 rounded-md px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50 cursor-pointer select-none"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={visibleColumns[colKey]}
+                          onChange={() => toggleColumn(colKey)}
+                          className="h-3.5 w-3.5 rounded border-slate-300 text-[#57068c] focus:ring-[#57068c]"
+                        />
+                        <span>{col.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* View Mode Toggle */}
+          <div className="flex items-center rounded-lg border border-slate-200 bg-white p-1 shadow-2xs">
             <button
               type="button"
               onClick={() => setViewMode('table')}
@@ -206,6 +381,20 @@ export function IdeaBacklogView() {
             >
               <TableIcon className="h-3.5 w-3.5" />
               <span>Table</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode('grid')}
+              className={cn(
+                "px-2.5 py-1.5 rounded-md text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer",
+                viewMode === 'grid'
+                  ? "bg-[#57068c] text-white shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+              )}
+              title="Cards Grid View"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span>Cards</span>
             </button>
           </div>
 
@@ -253,17 +442,16 @@ export function IdeaBacklogView() {
       </div>
 
       {/* Filters & Search Toolbar */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+      <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-xs space-y-2.5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Search Box */}
-          <div className="relative flex-1 min-w-[240px] max-w-md">
+          <div className="relative flex-1 min-w-[220px] max-w-md">
             <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
             <Input
-              type="text"
-              placeholder="Search by idea, vendor, website, timeframe, or notes..."
+              placeholder="Search ideas, vendors, notes, timeframes..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 h-9 text-xs bg-slate-50/70"
+              className="pl-9 text-xs bg-slate-50/50 h-9"
             />
             {searchQuery && (
               <button
@@ -276,32 +464,35 @@ export function IdeaBacklogView() {
             )}
           </div>
 
-          {/* Filter Dropdowns */}
-          <div className="flex flex-wrap items-center gap-2.5 text-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 font-medium">Status:</span>
+          {/* Quick Filters */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Status Filter */}
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-slate-500 font-medium text-[11px]">Status:</span>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-800 focus:ring-1 focus:ring-purple-600"
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 cursor-pointer"
               >
                 <option value="All">All Statuses</option>
-                <option value="Ready to Plan">Ready to Plan</option>
-                <option value="Under Consideration">Under Consideration</option>
                 <option value="Draft">Draft</option>
+                <option value="Contacting Vendor">Contacting Vendor</option>
+                <option value="Under Consideration">Under Consideration</option>
+                <option value="Ready to Plan">Ready to Plan</option>
                 <option value="Promoted">Promoted</option>
               </select>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 font-medium">Region:</span>
+            {/* Region Filter */}
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-slate-500 font-medium text-[11px]">Region:</span>
               <select
                 value={regionFilter}
                 onChange={(e) => setRegionFilter(e.target.value)}
-                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-800 focus:ring-1 focus:ring-purple-600"
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 cursor-pointer"
               >
                 <option value="All">All Regions</option>
-                <option value="SF">SF (San Francisco)</option>
+                <option value="SF">SF Only</option>
                 <option value="East Bay">East Bay</option>
                 <option value="South Bay">South Bay</option>
                 <option value="Virtual">Virtual</option>
@@ -309,31 +500,51 @@ export function IdeaBacklogView() {
               </select>
             </div>
 
-            <div className="flex items-center gap-1.5">
-              <span className="text-slate-500 font-medium">Sort by:</span>
+            {/* Sort Filter */}
+            <div className="flex items-center gap-1 text-xs">
+              <span className="text-slate-500 font-medium text-[11px]">Sort:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-800 focus:ring-1 focus:ring-purple-600"
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-semibold text-slate-700 cursor-pointer"
               >
-                <option value="upvotes">Most Upvoted 👍</option>
-                <option value="newest">Newest First</option>
-                <option value="title">Alphabetical</option>
+                <option value="custom">Custom (Drag Order)</option>
+                <option value="upvotes">Most Upvotes</option>
+                <option value="newest">Recently Added</option>
+                <option value="title">Alphabetical (A-Z)</option>
               </select>
             </div>
           </div>
         </div>
+
+        {/* Drag Hint */}
+        <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+          <span className="flex items-center gap-1.5">
+            <GripVertical className="h-3 w-3 text-purple-700" />
+            <span>Click and drag any row/card by the grip handle to reprioritize</span>
+          </span>
+          <span className="font-semibold text-slate-600">
+            Showing {filteredIdeas.length} of {ideas.length} ideas
+          </span>
+        </div>
       </div>
 
-      {/* VIEW 1: CARDS GRID */}
+      {/* VIEW 1: CARDS GRID VIEW */}
       {viewMode === 'grid' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredIdeas.map((idea) => (
             <IdeaCard
               key={idea.id}
               idea={idea}
               onUpvote={handleUpvote}
               onUpgrade={handleStartUpgrade}
+              isDraggable={true}
+              onDragStart={(e) => handleDragStart(e, idea.id)}
+              onDragOver={(e) => handleDragOver(e, idea.id)}
+              onDrop={() => handleDrop(idea.id)}
+              onDragEnd={handleDragEnd}
+              isDragging={draggedIdeaId === idea.id}
+              isDragOver={dragOverIdeaId === idea.id}
             />
           ))}
 
@@ -356,22 +567,43 @@ export function IdeaBacklogView() {
         </div>
       )}
 
-      {/* VIEW 2: TABLE VIEW */}
+      {/* VIEW 2: COMPACT RESPONSIVE TABLE VIEW (NO HORIZONTAL SCROLL) */}
       {viewMode === 'table' && (
         <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-xs">
+          <div className="w-full overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs table-auto">
               <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
-                  <th className="py-3 px-3 w-12 text-center">Votes</th>
-                  <th className="py-3 px-3 min-w-[200px]">Idea & Concept</th>
-                  <th className="py-3 px-3 min-w-[160px]">Vendor / Venue</th>
-                  <th className="py-3 px-3 min-w-[130px]">Target Timeframe</th>
-                  <th className="py-3 px-3 min-w-[80px]">Region</th>
-                  <th className="py-3 px-3 min-w-[180px]">Notes</th>
-                  <th className="py-3 px-3 min-w-[90px]">Status</th>
-                  <th className="py-3 px-3 min-w-[110px]">Pitched By</th>
-                  <th className="py-3 px-3 min-w-[140px] text-right">Actions</th>
+                <tr className="border-b border-slate-200 bg-slate-50/90 text-[11px] font-bold text-slate-600 uppercase tracking-wider">
+                  <th className="py-2.5 px-2 w-8 text-center" title="Drag to reorder">
+                    <span className="sr-only">Drag</span>
+                  </th>
+                  {visibleColumns.votes && (
+                    <th className="py-2.5 px-2.5 w-16 text-center">Votes</th>
+                  )}
+                  {visibleColumns.concept && (
+                    <th className="py-2.5 px-3 min-w-[180px]">Idea & Concept</th>
+                  )}
+                  {visibleColumns.vendor && (
+                    <th className="py-2.5 px-3 min-w-[140px]">Vendor / Venue</th>
+                  )}
+                  {visibleColumns.timeframe && (
+                    <th className="py-2.5 px-2.5 min-w-[110px]">Target Timeframe</th>
+                  )}
+                  {visibleColumns.region && (
+                    <th className="py-2.5 px-2 w-16 text-center">Region</th>
+                  )}
+                  {visibleColumns.notes && (
+                    <th className="py-2.5 px-3 min-w-[140px]">Notes</th>
+                  )}
+                  {visibleColumns.status && (
+                    <th className="py-2.5 px-2.5 w-24">Status</th>
+                  )}
+                  {visibleColumns.submitter && (
+                    <th className="py-2.5 px-2.5 w-24">Pitched By</th>
+                  )}
+                  {visibleColumns.actions && (
+                    <th className="py-2.5 px-3 w-28 text-right">Actions</th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -379,250 +611,335 @@ export function IdeaBacklogView() {
                   const isEditing = editingIdeaId === idea.id;
                   const isPromoted = idea.status === 'Promoted';
                   const hasUpvoted = (idea.upvoters || []).includes('Leighton');
+                  const isDragging = draggedIdeaId === idea.id;
+                  const isDragOver = dragOverIdeaId === idea.id;
 
                   return (
                     <tr
                       key={idea.id}
+                      draggable={!isEditing}
+                      onDragStart={(e) => handleDragStart(e, idea.id)}
+                      onDragOver={(e) => handleDragOver(e, idea.id)}
+                      onDrop={() => handleDrop(idea.id)}
+                      onDragEnd={handleDragEnd}
                       className={cn(
-                        "transition-colors hover:bg-slate-50/70",
-                        isPromoted ? "bg-emerald-50/20" : ""
+                        "transition-all group",
+                        isDragging && "opacity-30 bg-purple-100 border-2 border-dashed border-purple-400",
+                        isDragOver && "border-t-2 border-t-[#57068c] bg-purple-50/70",
+                        !isDragging && !isDragOver && isPromoted
+                          ? "bg-emerald-50/20 hover:bg-emerald-50/40"
+                          : "hover:bg-slate-50/80"
                       )}
                     >
-                      {/* Upvote column */}
-                      <td className="py-3 px-3 text-center align-top">
-                        <button
-                          type="button"
-                          onClick={() => handleUpvote(idea.id)}
-                          className={cn(
-                            "inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold transition-all cursor-pointer select-none",
-                            hasUpvoted
-                              ? "bg-[#57068c] text-white hover:bg-[#460570]"
-                              : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                          )}
+                      {/* Drag Grip Handle */}
+                      <td className="py-2.5 px-2 text-center align-middle cursor-grab active:cursor-grabbing">
+                        <div
+                          className="text-slate-300 group-hover:text-slate-600 transition-colors p-1"
+                          title="Click & drag to reorder"
                         >
-                          <ThumbsUp className="h-3 w-3" />
-                          <span>{idea.upvotes}</span>
-                        </button>
-                      </td>
-
-                      {/* Idea Title & Description */}
-                      <td className="py-3 px-3 align-top">
-                        {isEditing ? (
-                          <div className="space-y-1.5">
-                            <Input
-                              value={editFormData.title ?? idea.title}
-                              onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
-                              className="h-7 text-xs font-bold"
-                            />
-                            <textarea
-                              value={editFormData.description ?? idea.description}
-                              onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                              rows={2}
-                              className="w-full text-xs p-1.5 border rounded border-slate-300"
-                            />
-                          </div>
-                        ) : (
-                          <div>
-                            <span className="font-bold text-slate-900 block leading-snug">
-                              {idea.title}
-                            </span>
-                            <p className="text-slate-500 text-[11px] mt-0.5 line-clamp-2">
-                              {idea.description}
-                            </p>
-                            {idea.tags && idea.tags.length > 0 && (
-                              <div className="flex flex-wrap gap-1 mt-1">
-                                {idea.tags.map((t) => (
-                                  <span key={t} className="text-[9px] bg-slate-100 text-slate-600 px-1.5 py-0.2 rounded font-medium">
-                                    #{t}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Vendor / Venue & Website */}
-                      <td className="py-3 px-3 align-top">
-                        {isEditing ? (
-                          <div className="space-y-1">
-                            <Input
-                              placeholder="Vendor name"
-                              value={editFormData.vendor_name ?? idea.vendor_name ?? ''}
-                              onChange={(e) => setEditFormData({ ...editFormData, vendor_name: e.target.value })}
-                              className="h-7 text-xs"
-                            />
-                            <Input
-                              placeholder="Website URL"
-                              value={editFormData.vendor_website ?? idea.vendor_website ?? ''}
-                              onChange={(e) => setEditFormData({ ...editFormData, vendor_website: e.target.value })}
-                              className="h-7 text-xs"
-                            />
-                          </div>
-                        ) : (
-                          <div>
-                            {idea.vendor_name ? (
-                              <span className="font-semibold text-slate-800 block flex items-center gap-1">
-                                <Building2 className="h-3 w-3 text-purple-700 shrink-0" />
-                                <span>{idea.vendor_name}</span>
-                              </span>
-                            ) : (
-                              <span className="text-slate-400 italic">Not specified</span>
-                            )}
-                            {idea.vendor_website && (
-                              <a
-                                href={idea.vendor_website}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex items-center gap-1 text-[10px] text-[#57068c] font-semibold hover:underline mt-0.5"
-                              >
-                                <span>Website</span>
-                                <ExternalLink className="h-2.5 w-2.5" />
-                              </a>
-                            )}
-                          </div>
-                        )}
-                      </td>
-
-                      {/* Target Timeframe */}
-                      <td className="py-3 px-3 align-top">
-                        {isEditing ? (
-                          <Input
-                            value={editFormData.time_period ?? idea.time_period ?? ''}
-                            onChange={(e) => setEditFormData({ ...editFormData, time_period: e.target.value })}
-                            className="h-7 text-xs"
-                          />
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-slate-700 font-semibold bg-purple-50 text-purple-900 px-2 py-0.5 rounded text-[11px]">
-                            <Clock className="h-3 w-3 text-purple-600" />
-                            <span>{idea.time_period || 'Flexible'}</span>
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Region */}
-                      <td className="py-3 px-3 align-top">
-                        <span className="text-slate-600 font-medium bg-slate-100 px-2 py-0.5 rounded text-[11px]">
-                          {idea.suggested_region}
-                        </span>
-                      </td>
-
-                      {/* Notes */}
-                      <td className="py-3 px-3 align-top">
-                        {isEditing ? (
-                          <textarea
-                            value={editFormData.notes ?? idea.notes ?? ''}
-                            onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
-                            rows={2}
-                            className="w-full text-xs p-1.5 border rounded border-slate-300"
-                          />
-                        ) : (
-                          <p className="text-slate-600 text-[11px] leading-relaxed line-clamp-3">
-                            {idea.notes || <span className="text-slate-400 italic">No notes added</span>}
-                          </p>
-                        )}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3 px-3 align-top">
-                        <Badge
-                          variant={
-                            isPromoted
-                              ? 'emerald'
-                              : idea.status === 'Ready to Plan'
-                              ? 'purple'
-                              : idea.status === 'Under Consideration'
-                              ? 'warning'
-                              : 'secondary'
-                          }
-                          className="text-[10px] font-bold whitespace-nowrap"
-                        >
-                          {idea.status}
-                        </Badge>
-                      </td>
-
-                      {/* Pitched By */}
-                      <td className="py-3 px-3 align-top">
-                        <div className="flex items-center gap-1.5">
-                          <span className="h-5 w-5 rounded-full bg-slate-800 text-[9px] font-bold text-white flex items-center justify-center">
-                            {idea.submitted_avatar || idea.submitted_by.substring(0, 2).toUpperCase()}
-                          </span>
-                          <span className="text-[11px] font-semibold text-slate-700 truncate">
-                            {idea.submitted_by}
-                          </span>
+                          <GripVertical className="h-4 w-4 mx-auto" />
                         </div>
                       </td>
 
-                      {/* Actions */}
-                      <td className="py-3 px-3 text-right align-top space-x-1 whitespace-nowrap">
-                        {isEditing ? (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleSaveInlineEdit(idea.id)}
-                              className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-700"
-                              title="Save changes"
-                            >
-                              <Check className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingIdeaId(null);
-                                setEditFormData({});
-                              }}
-                              className="p-1 rounded bg-slate-200 text-slate-700 hover:bg-slate-300"
-                              title="Cancel"
-                            >
-                              <X className="h-3.5 w-3.5" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            {!isPromoted && (
-                              <Button
-                                size="sm"
-                                onClick={() => handleStartUpgrade(idea)}
-                                className="h-7 px-2 bg-[#57068c] hover:bg-[#460570] text-white text-[11px] font-bold gap-1"
-                              >
-                                <Sparkles className="h-3 w-3 text-amber-300" />
-                                <span>Upgrade</span>
-                              </Button>
+                      {/* Upvote column */}
+                      {visibleColumns.votes && (
+                        <td className="py-2.5 px-2.5 text-center align-middle">
+                          <button
+                            type="button"
+                            onClick={() => handleUpvote(idea.id)}
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold transition-all cursor-pointer select-none",
+                              hasUpvoted
+                                ? "bg-[#57068c] text-white hover:bg-[#460570]"
+                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
                             )}
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditingIdeaId(idea.id);
-                                setEditFormData({
-                                  title: idea.title,
-                                  description: idea.description,
-                                  vendor_name: idea.vendor_name,
-                                  vendor_website: idea.vendor_website,
-                                  time_period: idea.time_period,
-                                  notes: idea.notes,
-                                });
-                              }}
-                              className="p-1.5 text-slate-400 hover:text-purple-600 transition-colors"
-                              title="Edit Idea"
+                            title="Upvote idea"
+                          >
+                            <ThumbsUp className="h-3 w-3" />
+                            <span>{idea.upvotes}</span>
+                          </button>
+                        </td>
+                      )}
+
+                      {/* Idea Title & Description */}
+                      {visibleColumns.concept && (
+                        <td className="py-2.5 px-3 align-middle">
+                          {isEditing ? (
+                            <div className="space-y-1">
+                              <Input
+                                value={editFormData.title ?? idea.title}
+                                onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                                className="h-7 text-xs font-bold"
+                              />
+                              <textarea
+                                value={editFormData.description ?? idea.description}
+                                onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                                rows={2}
+                                className="w-full text-xs p-1 border rounded border-slate-300"
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              <span className="font-bold text-slate-900 leading-snug block">
+                                {idea.title}
+                              </span>
+                              {idea.description && (
+                                <p className="text-slate-500 text-[11px] mt-0.5 line-clamp-1">
+                                  {idea.description}
+                                </p>
+                              )}
+                              {!visibleColumns.region && (
+                                <span className="inline-block text-[9px] font-semibold text-purple-700 bg-purple-50 px-1.5 py-0.2 rounded mt-0.5">
+                                  {idea.suggested_region}
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      )}
+
+                      {/* Vendor / Venue & Website */}
+                      {visibleColumns.vendor && (
+                        <td className="py-2.5 px-3 align-middle">
+                          {isEditing ? (
+                            <div className="space-y-1">
+                              <Input
+                                placeholder="Vendor name"
+                                value={editFormData.vendor_name ?? idea.vendor_name ?? ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, vendor_name: e.target.value })}
+                                className="h-7 text-xs"
+                              />
+                              <Input
+                                placeholder="Website URL"
+                                value={editFormData.vendor_website ?? idea.vendor_website ?? ''}
+                                onChange={(e) => setEditFormData({ ...editFormData, vendor_website: e.target.value })}
+                                className="h-7 text-xs"
+                              />
+                            </div>
+                          ) : (
+                            <div>
+                              {idea.vendor_name ? (
+                                <span className="font-semibold text-slate-800 flex items-center gap-1">
+                                  <Building2 className="h-3 w-3 text-purple-700 shrink-0" />
+                                  <span className="truncate">{idea.vendor_name}</span>
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 italic">Not specified</span>
+                              )}
+                              {idea.vendor_website && (
+                                <a
+                                  href={idea.vendor_website}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex items-center gap-0.5 text-[10px] text-[#57068c] font-semibold hover:underline mt-0.5"
+                                >
+                                  <span>Website</span>
+                                  <ExternalLink className="h-2.5 w-2.5" />
+                                </a>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      )}
+
+                      {/* Target Timeframe */}
+                      {visibleColumns.timeframe && (
+                        <td className="py-2.5 px-2.5 align-middle">
+                          {isEditing ? (
+                            <Input
+                              value={editFormData.time_period ?? idea.time_period ?? ''}
+                              onChange={(e) => setEditFormData({ ...editFormData, time_period: e.target.value })}
+                              className="h-7 text-xs"
+                            />
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-purple-950 font-semibold bg-purple-50 px-2 py-0.5 rounded text-[11px] border border-purple-100">
+                              <Clock className="h-3 w-3 text-purple-600 shrink-0" />
+                              <span className="truncate">{idea.time_period || 'Flexible'}</span>
+                            </span>
+                          )}
+                        </td>
+                      )}
+
+                      {/* Region */}
+                      {visibleColumns.region && (
+                        <td className="py-2.5 px-2 align-middle text-center">
+                          <span className="text-slate-600 font-semibold bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">
+                            {idea.suggested_region}
+                          </span>
+                        </td>
+                      )}
+
+                      {/* Notes */}
+                      {visibleColumns.notes && (
+                        <td className="py-2.5 px-3 align-middle">
+                          {isEditing ? (
+                            <textarea
+                              value={editFormData.notes ?? idea.notes ?? ''}
+                              onChange={(e) => setEditFormData({ ...editFormData, notes: e.target.value })}
+                              rows={2}
+                              className="w-full text-xs p-1 border rounded border-slate-300"
+                            />
+                          ) : (
+                            <div
+                              onClick={() => idea.notes && setActiveNoteModalIdea(idea)}
+                              className={cn(
+                                "cursor-pointer group/note max-w-[200px]",
+                                idea.notes ? "hover:text-[#57068c]" : ""
+                              )}
+                              title={idea.notes || 'No notes added'}
                             >
-                              <Edit2 className="h-3.5 w-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleDeleteIdea(idea.id)}
-                              className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors"
-                              title="Delete Idea"
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
-                          </>
-                        )}
-                      </td>
+                              <p className="text-slate-600 text-[11px] leading-snug line-clamp-2">
+                                {idea.notes || <span className="text-slate-400 italic">No notes</span>}
+                              </p>
+                            </div>
+                          )}
+                        </td>
+                      )}
+
+                      {/* Status */}
+                      {visibleColumns.status && (
+                        <td className="py-2.5 px-2.5 align-middle">
+                          <Badge
+                            variant={
+                              isPromoted
+                                ? 'emerald'
+                                : idea.status === 'Ready to Plan'
+                                ? 'purple'
+                                : idea.status === 'Under Consideration'
+                                ? 'warning'
+                                : 'secondary'
+                            }
+                            className="text-[10px] font-bold whitespace-nowrap"
+                          >
+                            {idea.status}
+                          </Badge>
+                        </td>
+                      )}
+
+                      {/* Pitched By */}
+                      {visibleColumns.submitter && (
+                        <td className="py-2.5 px-2.5 align-middle">
+                          <div className="flex items-center gap-1.5">
+                            <span className="h-5 w-5 rounded-full bg-slate-800 text-[9px] font-bold text-white flex items-center justify-center shrink-0">
+                              {idea.submitted_avatar || idea.submitted_by.substring(0, 2).toUpperCase()}
+                            </span>
+                            <span className="text-[11px] font-semibold text-slate-700 truncate">
+                              {idea.submitted_by}
+                            </span>
+                          </div>
+                        </td>
+                      )}
+
+                      {/* Actions */}
+                      {visibleColumns.actions && (
+                        <td className="py-2.5 px-3 text-right align-middle whitespace-nowrap">
+                          {isEditing ? (
+                            <div className="inline-flex items-center gap-1">
+                              <button
+                                type="button"
+                                onClick={() => handleSaveInlineEdit(idea.id)}
+                                className="p-1 rounded bg-emerald-600 text-white hover:bg-emerald-700 cursor-pointer"
+                                title="Save changes"
+                              >
+                                <Check className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingIdeaId(null);
+                                  setEditFormData({});
+                                }}
+                                className="p-1 rounded bg-slate-200 text-slate-700 hover:bg-slate-300 cursor-pointer"
+                                title="Cancel"
+                              >
+                                <X className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="inline-flex items-center gap-1">
+                              {!isPromoted && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleStartUpgrade(idea)}
+                                  className="h-7 px-2.5 bg-[#57068c] hover:bg-[#460570] text-white text-[11px] font-bold gap-1 shadow-2xs cursor-pointer"
+                                >
+                                  <Sparkles className="h-3 w-3 text-amber-300" />
+                                  <span>Upgrade</span>
+                                </Button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingIdeaId(idea.id);
+                                  setEditFormData({
+                                    title: idea.title,
+                                    description: idea.description,
+                                    vendor_name: idea.vendor_name,
+                                    vendor_website: idea.vendor_website,
+                                    time_period: idea.time_period,
+                                    notes: idea.notes,
+                                  });
+                                }}
+                                className="p-1 text-slate-400 hover:text-purple-600 transition-colors cursor-pointer"
+                                title="Edit Idea"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteIdea(idea.id)}
+                                className="p-1 text-slate-400 hover:text-rose-600 transition-colors cursor-pointer"
+                                title="Delete Idea"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      )}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
+          </div>
+        </div>
+      )}
+
+      {/* Note View Modal (When clicking notes in compact table) */}
+      {activeNoteModalIdea && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-xs p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl space-y-3">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
+              <span className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                <Info className="h-4 w-4 text-[#57068c]" />
+                <span>Planning Notes: {activeNoteModalIdea.title}</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => setActiveNoteModalIdea(null)}
+                className="text-slate-400 hover:text-slate-600"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+            <div className="rounded-xl border border-amber-200/80 bg-amber-50/50 p-3 text-xs text-amber-950 leading-relaxed whitespace-pre-wrap">
+              {activeNoteModalIdea.notes}
+            </div>
+            {activeNoteModalIdea.vendor_name && (
+              <p className="text-xs text-slate-500 font-medium">
+                Vendor: <strong className="text-slate-800">{activeNoteModalIdea.vendor_name}</strong>
+              </p>
+            )}
+            <div className="text-right">
+              <Button
+                size="sm"
+                onClick={() => setActiveNoteModalIdea(null)}
+                className="bg-slate-800 hover:bg-slate-900 text-white text-xs"
+              >
+                Close
+              </Button>
+            </div>
           </div>
         </div>
       )}

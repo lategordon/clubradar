@@ -1,7 +1,17 @@
 'use client';
 
 import React from 'react';
-import { ThumbsUp, Sparkles, MapPin, Clock, ArrowRight, CheckCircle2, User, Tag, ExternalLink, Building2, StickyNote } from 'lucide-react';
+import {
+  ThumbsUp,
+  Sparkles,
+  MapPin,
+  Clock,
+  CheckCircle2,
+  ExternalLink,
+  Building2,
+  StickyNote,
+  GripVertical,
+} from 'lucide-react';
 import { EventIdea } from '@/types/database.types';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,16 +22,42 @@ interface IdeaCardProps {
   onUpvote: (id: string) => void;
   onUpgrade: (idea: EventIdea) => void;
   onEdit?: (idea: EventIdea) => void;
+  isDraggable?: boolean;
+  onDragStart?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragEnd?: () => void;
+  isDragging?: boolean;
+  isDragOver?: boolean;
 }
 
-export function IdeaCard({ idea, onUpvote, onUpgrade, onEdit }: IdeaCardProps) {
+export function IdeaCard({
+  idea,
+  onUpvote,
+  onUpgrade,
+  onEdit,
+  isDraggable = true,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragging,
+  isDragOver,
+}: IdeaCardProps) {
   const isPromoted = idea.status === 'Promoted';
   const hasUpvoted = (idea.upvoters || []).includes('Leighton');
 
   return (
     <div
+      draggable={isDraggable}
+      onDragStart={onDragStart}
+      onDragOver={onDragOver}
+      onDrop={onDrop}
+      onDragEnd={onDragEnd}
       className={cn(
         "group relative flex flex-col justify-between rounded-2xl border bg-white p-5 shadow-xs transition-all hover:shadow-md hover:-translate-y-0.5",
+        isDragging && "opacity-40 scale-[0.98] border-purple-400 ring-2 ring-purple-400 bg-purple-50/50",
+        isDragOver && "ring-2 ring-[#57068c] border-purple-500 scale-[1.01] bg-purple-50/30",
         isPromoted
           ? "border-emerald-200 bg-emerald-50/20 opacity-90"
           : idea.status === 'Ready to Plan'
@@ -33,6 +69,14 @@ export function IdeaCard({ idea, onUpvote, onUpgrade, onEdit }: IdeaCardProps) {
         {/* Top Meta Bar */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Drag Handle */}
+            <div
+              className="text-slate-300 group-hover:text-slate-500 transition-colors cursor-grab active:cursor-grabbing p-0.5"
+              title="Click and drag to reorder idea"
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+
             <Badge
               variant={
                 isPromoted

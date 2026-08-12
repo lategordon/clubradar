@@ -29,6 +29,26 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
+export function getQuarterInfo(dateString: string) {
+  try {
+    const d = parseISO(dateString);
+    if (!isValid(d)) return { key: 'Other', title: 'Other Dates', qNum: 'Q', range: '', year: '' };
+    const month = d.getMonth(); // 0-11
+    const year = d.getFullYear();
+    if (month >= 0 && month <= 2) {
+      return { key: `Q1-${year}`, title: `Q1 ${year}`, qNum: 'Q1', range: `Jan – Mar ${year}`, year: `${year}` };
+    } else if (month >= 3 && month <= 5) {
+      return { key: `Q2-${year}`, title: `Q2 ${year}`, qNum: 'Q2', range: `Apr – Jun ${year}`, year: `${year}` };
+    } else if (month >= 6 && month <= 8) {
+      return { key: `Q3-${year}`, title: `Q3 ${year}`, qNum: 'Q3', range: `Jul – Sep ${year}`, year: `${year}` };
+    } else {
+      return { key: `Q4-${year}`, title: `Q4 ${year}`, qNum: 'Q4', range: `Oct – Dec ${year}`, year: `${year}` };
+    }
+  } catch {
+    return { key: 'Other', title: 'Other Dates', qNum: 'Q', range: '', year: '' };
+  }
+}
+
 export interface TableRowItem {
   id: string;
   isAwareness: boolean;
@@ -37,6 +57,10 @@ export interface TableRowItem {
   endDate?: string;
   monthFormatted: string; // e.g. "October" (Month only)
   fullDateFormatted: string; // e.g. "Oct 8, 2026"
+  quarterKey: string;
+  quarterTitle: string;
+  quarterNum: string;
+  quarterRange: string;
   weeksFromToday: number; // rounded up whole number
   weeksLabel: string;
   isUrgent6w: boolean;
@@ -144,6 +168,8 @@ export function EventTableView({
       const isUrgent6w = evt.deadlines?.isSixWeekUrgent || Math.abs(daysDiff - 42) <= 7;
       const isUrgent8w = evt.deadlines?.isEightWeekUrgent || Math.abs(daysDiff - 56) <= 7;
 
+      const qInfo = getQuarterInfo(evt.event_date);
+
       rows.push({
         id: evt.id,
         isAwareness: false,
@@ -151,6 +177,10 @@ export function EventTableView({
         startDate: evt.event_date,
         monthFormatted: isValid(evtDate) ? format(evtDate, 'MMMM') : '', // Month only (no year)
         fullDateFormatted: isValid(evtDate) ? format(evtDate, 'MMM d, yyyy') : evt.event_date,
+        quarterKey: qInfo.key,
+        quarterTitle: qInfo.title,
+        quarterNum: qInfo.qNum,
+        quarterRange: qInfo.range,
         weeksFromToday: weeksAway,
         weeksLabel,
         isUrgent6w,
@@ -191,6 +221,8 @@ export function EventTableView({
         weeksLabel = 'Today';
       }
 
+      const qInfo = getQuarterInfo(awr.start_date);
+
       rows.push({
         id: awr.id,
         isAwareness: true,
@@ -199,6 +231,10 @@ export function EventTableView({
         endDate: awr.end_date,
         monthFormatted: isValid(startDate) ? format(startDate, 'MMMM') : '', // Month only
         fullDateFormatted: fullDate,
+        quarterKey: qInfo.key,
+        quarterTitle: qInfo.title,
+        quarterNum: qInfo.qNum,
+        quarterRange: qInfo.range,
         weeksFromToday: weeksAway,
         weeksLabel,
         isUrgent6w: false,
@@ -344,7 +380,81 @@ export function EventTableView({
     return name.substring(0, 2).toUpperCase();
   };
 
+  // Row styling based on status / type to differentiate each event with distinct colors
+  const getRowStyling = (row: TableRowItem) => {
+    if (row.isAwareness) {
+      if (row.status === 'Conference' || row.category === 'Community / Conference') {
+        return {
+          bg: 'bg-indigo-50/40 hover:bg-indigo-100/60 border-l-[5px] border-l-indigo-500 text-slate-900',
+          dot: 'bg-indigo-500',
+          badgeVariant: 'community' as const,
+          icon: '🏛️',
+        };
+      }
+      return {
+        bg: 'bg-stone-50/70 hover:bg-stone-100/80 border-l-[5px] border-l-stone-400 text-slate-800',
+        dot: 'bg-stone-500',
+        badgeVariant: 'secondary' as const,
+        icon: '🗓️',
+      };
+    }
+
+    switch (row.status) {
+      case 'Confirmed':
+        return {
+          bg: 'bg-emerald-50/50 hover:bg-emerald-100/70 border-l-[5px] border-l-emerald-600 text-slate-900',
+          dot: 'bg-emerald-600',
+          badgeVariant: 'confirmed' as const,
+          icon: '✅',
+        };
+      case 'Submitted':
+        return {
+          bg: 'bg-purple-50/60 hover:bg-purple-100/80 border-l-[5px] border-l-[#57068c] text-slate-900',
+          dot: 'bg-[#57068c]',
+          badgeVariant: 'submitted' as const,
+          icon: '📨',
+        };
+      case 'Planning':
+        return {
+          bg: 'bg-sky-50/50 hover:bg-sky-100/70 border-l-[5px] border-l-sky-500 text-slate-900',
+          dot: 'bg-sky-600',
+          badgeVariant: 'planning' as const,
+          icon: '📝',
+        };
+      case 'Idea':
+        return {
+          bg: 'bg-amber-50/50 hover:bg-amber-100/70 border-l-[5px] border-l-amber-500 text-slate-900',
+          dot: 'bg-amber-500',
+          badgeVariant: 'idea' as const,
+          icon: '💡',
+        };
+      case 'Completed':
+        return {
+          bg: 'bg-slate-100/60 hover:bg-slate-200/60 border-l-[5px] border-l-slate-400 text-slate-600',
+          dot: 'bg-slate-400',
+          badgeVariant: 'secondary' as const,
+          icon: '🏁',
+        };
+      default:
+        return {
+          bg: 'bg-white hover:bg-slate-50 border-l-[5px] border-l-slate-300 text-slate-900',
+          dot: 'bg-slate-400',
+          badgeVariant: 'secondary' as const,
+          icon: '📌',
+        };
+    }
+  };
+
+  const quarterCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    filteredData.forEach((r) => {
+      counts[r.quarterKey] = (counts[r.quarterKey] || 0) + 1;
+    });
+    return counts;
+  }, [filteredData]);
+
   const activeColumnsCount = Object.values(visibleColumns).filter(Boolean).length;
+  const totalVisibleCols = activeColumnsCount + 1; // +1 for Actions column
 
   return (
     <div className="space-y-4">
@@ -658,300 +768,322 @@ export function EventTableView({
 
             {/* Table Body */}
             <tbody className="divide-y divide-slate-100">
-              {filteredData.map((row) => {
+              {filteredData.map((row, index) => {
                 const isEditing = editingRowId === row.id;
+                const styling = getRowStyling(row);
 
-                if (isEditing) {
-                  return (
-                    <tr key={row.id} className="bg-purple-50/60">
-                      {/* Month */}
-                      {visibleColumns.month && (
-                        <td className="py-2.5 px-3.5 font-bold text-slate-700">
-                          {row.monthFormatted}
-                        </td>
-                      )}
-
-                      {/* Full Date Input */}
-                      {visibleColumns.date && (
-                        <td className="py-2.5 px-3.5">
-                          <Input
-                            type="date"
-                            value={editFormData.startDate}
-                            onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
-                            className="h-8 text-xs font-medium w-36 bg-white"
-                          />
-                        </td>
-                      )}
-
-                      {/* Weeks from today (calculated live and rounded up) */}
-                      {visibleColumns.weeks && (
-                        <td className="py-2.5 px-3.5 font-bold text-purple-900">
-                          {calculateEventDeadlines(editFormData.startDate).daysUntilEvent > 0
-                            ? `${Math.ceil(calculateEventDeadlines(editFormData.startDate).daysUntilEvent / 7)} wks`
-                            : 'Past'}
-                        </td>
-                      )}
-
-                      {/* Event Idea Input */}
-                      {visibleColumns.idea && (
-                        <td className="py-2.5 px-3.5">
-                          <Input
-                            value={editFormData.title}
-                            onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
-                            className="h-8 text-xs font-bold bg-white"
-                          />
-                        </td>
-                      )}
-
-                      {/* Location Input */}
-                      {visibleColumns.location && (
-                        <td className="py-2.5 px-3.5">
-                          <Input
-                            value={editFormData.location}
-                            onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
-                            className="h-8 text-xs bg-white"
-                          />
-                        </td>
-                      )}
-
-                      {/* Cost Input (if visible) */}
-                      {visibleColumns.cost && (
-                        <td className="py-2.5 px-3.5">
-                          <Input
-                            type="number"
-                            value={editFormData.cost}
-                            onChange={(e) => setEditFormData({ ...editFormData, cost: Number(e.target.value) })}
-                            className="h-8 text-xs w-20 bg-white"
-                          />
-                        </td>
-                      )}
-
-                      {/* Status Dropdown */}
-                      {visibleColumns.status && (
-                        <td className="py-2.5 px-3.5">
-                          <select
-                            value={editFormData.status}
-                            onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as EventStatus })}
-                            className="h-8 rounded-md border border-purple-300 bg-white px-2 text-xs font-medium focus:ring-1 focus:ring-purple-600"
-                          >
-                            <option value="Idea">Idea</option>
-                            <option value="Planning">Planning</option>
-                            <option value="Submitted">Submitted</option>
-                            <option value="Confirmed">Confirmed</option>
-                          </select>
-                        </td>
-                      )}
-
-                      {/* Hosts Input */}
-                      {visibleColumns.host && (
-                        <td className="py-2.5 px-3.5">
-                          <Input
-                            placeholder="Primary Host"
-                            value={editFormData.primaryHost}
-                            onChange={(e) => setEditFormData({ ...editFormData, primaryHost: e.target.value })}
-                            className="h-8 text-xs bg-white"
-                          />
-                        </td>
-                      )}
-
-                      {/* Category */}
-                      {visibleColumns.category && (
-                        <td className="py-2.5 px-3.5 font-medium text-slate-600">
-                          {row.category}
-                        </td>
-                      )}
-
-                      {/* Actions */}
-                      <td className="py-2.5 px-3.5 text-right whitespace-nowrap">
-                        <div className="flex items-center justify-end gap-1.5">
-                          <Button
-                            size="sm"
-                            onClick={() => handleSaveEdit(row.id)}
-                            className="h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold"
-                          >
-                            <Check className="h-3.5 w-3.5 mr-1" /> Save
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleCancelEdit}
-                            className="h-7 px-2 text-[11px]"
-                          >
-                            <X className="h-3.5 w-3.5" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }
+                // Check if this row begins a new quarter
+                const prevRow = index > 0 ? filteredData[index - 1] : null;
+                const isNewQuarter = !prevRow || row.quarterKey !== prevRow.quarterKey;
 
                 return (
-                  <tr
-                    key={row.id}
-                    onClick={() => row.rawEvent && onSelectEvent(row.rawEvent)}
-                    className={cn(
-                      "group hover:bg-purple-50/40 transition-colors cursor-pointer",
-                      row.isAwareness ? "bg-slate-50/40" : "bg-white"
-                    )}
-                  >
-                    {/* Month (Month only, e.g. October) */}
-                    {visibleColumns.month && (
-                      <td className="py-3 px-3.5 whitespace-nowrap font-bold text-slate-800">
-                        <span className="inline-flex items-center gap-1.5">
-                          <span className="h-2 w-2 rounded-full bg-purple-600" />
-                          <span>{row.monthFormatted}</span>
-                        </span>
-                      </td>
-                    )}
-
-                    {/* Full Date */}
-                    {visibleColumns.date && (
-                      <td className="py-3 px-3.5 whitespace-nowrap font-medium text-slate-700">
-                        {row.fullDateFormatted}
-                      </td>
-                    )}
-
-                    {/* Weeks from today (Rounded up whole number) */}
-                    {visibleColumns.weeks && (
-                      <td className="py-3 px-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={cn(
-                              "font-bold text-xs px-2 py-0.5 rounded",
-                              row.isUrgent6w
-                                ? "bg-amber-100 text-amber-900 border border-amber-300 font-extrabold animate-pulse"
-                                : row.isUrgent8w
-                                ? "bg-amber-50 text-amber-900 border border-amber-200"
-                                : "bg-slate-100 text-slate-700"
-                            )}
-                          >
-                            {row.weeksLabel}
-                          </span>
-                          {row.isUrgent6w && (
-                            <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider bg-amber-200/80 px-1 rounded">
-                              6w Mark
-                            </span>
-                          )}
-                          {row.isUrgent8w && !row.isUrgent6w && (
-                            <span className="text-[10px] font-semibold text-amber-700 bg-amber-100/80 px-1 rounded">
-                              8w Mark
-                            </span>
-                          )}
-                        </div>
-                      </td>
-                    )}
-
-                    {/* Event Idea */}
-                    {visibleColumns.idea && (
-                      <td className="py-3 px-3.5 font-bold text-slate-900">
-                        <div className="flex items-center gap-2">
-                          <span>{row.status === 'Idea' ? '❓' : row.isAwareness ? '🏛️' : '👍'}</span>
-                          <div>
-                            <span className="group-hover:text-[#57068c] transition-colors">{row.title}</span>
-                            {row.notes && (
-                              <p className="text-[11px] font-normal text-slate-500 line-clamp-1 mt-0.5">
-                                {row.notes}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </td>
-                    )}
-
-                    {/* Location */}
-                    {visibleColumns.location && (
-                      <td className="py-3 px-3.5 whitespace-nowrap text-slate-600 font-medium">
-                        <span className="flex items-center gap-1">
-                          <MapPin className="h-3 w-3 text-slate-400" />
-                          <span>{row.location}</span>
-                        </span>
-                      </td>
-                    )}
-
-                    {/* Cost (Togglable) */}
-                    {visibleColumns.cost && (
-                      <td className="py-3 px-3.5 whitespace-nowrap font-bold text-slate-800">
-                        {row.costFormatted}
-                      </td>
-                    )}
-
-                    {/* Status */}
-                    {visibleColumns.status && (
-                      <td className="py-3 px-3.5 whitespace-nowrap">
-                        <Badge
-                          variant={
-                            row.status === 'Submitted'
-                              ? 'submitted'
-                              : row.status === 'Planning'
-                              ? 'planning'
-                              : row.status === 'Idea'
-                              ? 'idea'
-                              : row.status === 'Conference'
-                              ? 'community'
-                              : 'secondary'
-                          }
-                          className="text-[10px]"
+                  <React.Fragment key={row.id}>
+                    {/* Quarter Divider Separator Line */}
+                    {isNewQuarter && (
+                      <tr className="bg-slate-100/90 border-y-2 border-slate-300">
+                        <td
+                          colSpan={totalVisibleCols}
+                          className="py-2.5 px-4 bg-linear-to-r from-purple-100/80 via-slate-100 to-white"
                         >
-                          {row.status}
-                        </Badge>
-                      </td>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                              <span className="flex h-5 w-6 items-center justify-center rounded bg-[#57068c] text-white text-[10px] font-black uppercase tracking-wider shadow-2xs">
+                                {row.quarterNum}
+                              </span>
+                              <span className="font-black text-slate-900 text-xs tracking-tight uppercase flex items-center gap-1.5">
+                                <span>{row.quarterTitle}</span>
+                                <span className="text-slate-400 font-normal">•</span>
+                                <span className="text-[11px] font-semibold text-slate-600">
+                                  {row.quarterRange}
+                                </span>
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-bold text-purple-900 bg-purple-100/90 px-2.5 py-0.5 rounded-full border border-purple-200 shadow-2xs">
+                              {quarterCounts[row.quarterKey] || 0} events
+                            </span>
+                          </div>
+                        </td>
+                      </tr>
                     )}
 
-                    {/* Host(s) */}
-                    {visibleColumns.host && (
-                      <td className="py-3 px-3.5 whitespace-nowrap">
-                        <div className="flex items-center gap-1.5">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[9px] font-bold text-white shadow-2xs">
-                            {getAvatarBadge(row.primaryHost, row.coHosts)}
-                          </span>
-                          <span className="text-slate-700 font-semibold">{row.primaryHost}</span>
-                          {row.coHosts.length > 0 && (
-                            <span className="text-slate-400 text-[10px]">+ {row.coHosts.length}</span>
-                          )}
-                        </div>
-                      </td>
-                    )}
+                    {isEditing ? (
+                      <tr className="bg-purple-100/70 border-l-[5px] border-l-[#57068c]">
+                        {/* Month */}
+                        {visibleColumns.month && (
+                          <td className="py-2.5 px-3.5 font-bold text-slate-700">
+                            {row.monthFormatted}
+                          </td>
+                        )}
 
-                    {/* Category (if enabled) */}
-                    {visibleColumns.category && (
-                      <td className="py-3 px-3.5 whitespace-nowrap text-slate-600 font-medium">
-                        {row.category}
-                      </td>
-                    )}
+                        {/* Full Date Input */}
+                        {visibleColumns.date && (
+                          <td className="py-2.5 px-3.5">
+                            <Input
+                              type="date"
+                              value={editFormData.startDate}
+                              onChange={(e) => setEditFormData({ ...editFormData, startDate: e.target.value })}
+                              className="h-8 text-xs font-medium w-36 bg-white"
+                            />
+                          </td>
+                        )}
 
-                    {/* Actions */}
-                    <td
-                      className="py-3 px-3.5 whitespace-nowrap text-right"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {!row.isAwareness && (
-                        <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                          <button
-                            type="button"
-                            onClick={() => handleStartEdit(row)}
-                            className="rounded p-1 text-slate-400 hover:bg-purple-100 hover:text-[#57068c] transition-colors"
-                            title="Edit Event"
-                          >
-                            <Edit2 className="h-3.5 w-3.5" />
-                          </button>
-                          {onDeleteEvent && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (confirm(`Are you sure you want to delete "${row.title}"?`)) {
-                                  onDeleteEvent(row.id);
-                                }
-                              }}
-                              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors"
-                              title="Delete Event"
+                        {/* Weeks from today (calculated live and rounded up) */}
+                        {visibleColumns.weeks && (
+                          <td className="py-2.5 px-3.5 font-bold text-purple-900">
+                            {calculateEventDeadlines(editFormData.startDate).daysUntilEvent > 0
+                              ? `${Math.ceil(calculateEventDeadlines(editFormData.startDate).daysUntilEvent / 7)} wks`
+                              : 'Past'}
+                          </td>
+                        )}
+
+                        {/* Event Idea Input */}
+                        {visibleColumns.idea && (
+                          <td className="py-2.5 px-3.5">
+                            <Input
+                              value={editFormData.title}
+                              onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                              className="h-8 text-xs font-bold bg-white"
+                            />
+                          </td>
+                        )}
+
+                        {/* Location Input */}
+                        {visibleColumns.location && (
+                          <td className="py-2.5 px-3.5">
+                            <Input
+                              value={editFormData.location}
+                              onChange={(e) => setEditFormData({ ...editFormData, location: e.target.value })}
+                              className="h-8 text-xs bg-white"
+                            />
+                          </td>
+                        )}
+
+                        {/* Cost Input (if visible) */}
+                        {visibleColumns.cost && (
+                          <td className="py-2.5 px-3.5">
+                            <Input
+                              type="number"
+                              value={editFormData.cost}
+                              onChange={(e) => setEditFormData({ ...editFormData, cost: Number(e.target.value) })}
+                              className="h-8 text-xs w-20 bg-white"
+                            />
+                          </td>
+                        )}
+
+                        {/* Status Dropdown */}
+                        {visibleColumns.status && (
+                          <td className="py-2.5 px-3.5">
+                            <select
+                              value={editFormData.status}
+                              onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as EventStatus })}
+                              className="h-8 rounded-md border border-purple-300 bg-white px-2 text-xs font-medium focus:ring-1 focus:ring-purple-600"
                             >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                              <option value="Idea">Idea</option>
+                              <option value="Planning">Planning</option>
+                              <option value="Submitted">Submitted</option>
+                              <option value="Confirmed">Confirmed</option>
+                            </select>
+                          </td>
+                        )}
+
+                        {/* Hosts Input */}
+                        {visibleColumns.host && (
+                          <td className="py-2.5 px-3.5">
+                            <Input
+                              placeholder="Primary Host"
+                              value={editFormData.primaryHost}
+                              onChange={(e) => setEditFormData({ ...editFormData, primaryHost: e.target.value })}
+                              className="h-8 text-xs bg-white"
+                            />
+                          </td>
+                        )}
+
+                        {/* Category */}
+                        {visibleColumns.category && (
+                          <td className="py-2.5 px-3.5 font-medium text-slate-600">
+                            {row.category}
+                          </td>
+                        )}
+
+                        {/* Actions */}
+                        <td className="py-2.5 px-3.5 text-right whitespace-nowrap">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <Button
+                              size="sm"
+                              onClick={() => handleSaveEdit(row.id)}
+                              className="h-7 px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-bold"
+                            >
+                              <Check className="h-3.5 w-3.5 mr-1" /> Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={handleCancelEdit}
+                              className="h-7 px-2 text-[11px]"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        </td>
+                      </tr>
+                    ) : (
+                      <tr
+                        onClick={() => row.rawEvent && onSelectEvent(row.rawEvent)}
+                        className={cn(
+                          "group transition-all cursor-pointer",
+                          styling.bg
+                        )}
+                      >
+                        {/* Month (Month only, e.g. October) */}
+                        {visibleColumns.month && (
+                          <td className="py-3 px-3.5 whitespace-nowrap font-bold text-slate-800">
+                            <span className="inline-flex items-center gap-1.5">
+                              <span className={cn("h-2.5 w-2.5 rounded-full shadow-2xs", styling.dot)} />
+                              <span>{row.monthFormatted}</span>
+                            </span>
+                          </td>
+                        )}
+
+                        {/* Full Date */}
+                        {visibleColumns.date && (
+                          <td className="py-3 px-3.5 whitespace-nowrap font-medium text-slate-700">
+                            {row.fullDateFormatted}
+                          </td>
+                        )}
+
+                        {/* Weeks from today (Rounded up whole number) */}
+                        {visibleColumns.weeks && (
+                          <td className="py-3 px-3.5 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={cn(
+                                  "font-bold text-xs px-2 py-0.5 rounded shadow-2xs",
+                                  row.isUrgent6w
+                                    ? "bg-amber-200 text-amber-950 border border-amber-400 font-extrabold animate-pulse"
+                                    : row.isUrgent8w
+                                    ? "bg-amber-100 text-amber-900 border border-amber-300"
+                                    : "bg-white/80 text-slate-700 border border-slate-200"
+                                )}
+                              >
+                                {row.weeksLabel}
+                              </span>
+                              {row.isUrgent6w && (
+                                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider bg-amber-200/80 px-1 rounded">
+                                  6w Mark
+                                </span>
+                              )}
+                              {row.isUrgent8w && !row.isUrgent6w && (
+                                <span className="text-[10px] font-semibold text-amber-700 bg-amber-100/80 px-1 rounded">
+                                  8w Mark
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        )}
+
+                        {/* Event Idea */}
+                        {visibleColumns.idea && (
+                          <td className="py-3 px-3.5 font-bold text-slate-900">
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm">{styling.icon}</span>
+                              <div>
+                                <span className="group-hover:text-[#57068c] transition-colors leading-snug">{row.title}</span>
+                                {row.notes && (
+                                  <p className="text-[11px] font-normal text-slate-500 line-clamp-1 mt-0.5">
+                                    {row.notes}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                        )}
+
+                        {/* Location */}
+                        {visibleColumns.location && (
+                          <td className="py-3 px-3.5 whitespace-nowrap text-slate-600 font-medium">
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3 text-slate-400" />
+                              <span>{row.location}</span>
+                            </span>
+                          </td>
+                        )}
+
+                        {/* Cost (Togglable) */}
+                        {visibleColumns.cost && (
+                          <td className="py-3 px-3.5 whitespace-nowrap font-bold text-slate-800">
+                            {row.costFormatted}
+                          </td>
+                        )}
+
+                        {/* Status */}
+                        {visibleColumns.status && (
+                          <td className="py-3 px-3.5 whitespace-nowrap">
+                            <Badge
+                              variant={styling.badgeVariant}
+                              className="text-[10px] shadow-2xs font-bold"
+                            >
+                              {row.status}
+                            </Badge>
+                          </td>
+                        )}
+
+                        {/* Host(s) */}
+                        {visibleColumns.host && (
+                          <td className="py-3 px-3.5 whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[9px] font-bold text-white shadow-2xs">
+                                {getAvatarBadge(row.primaryHost, row.coHosts)}
+                              </span>
+                              <span className="text-slate-700 font-semibold">{row.primaryHost}</span>
+                              {row.coHosts.length > 0 && (
+                                <span className="text-slate-400 text-[10px]">+ {row.coHosts.length}</span>
+                              )}
+                            </div>
+                          </td>
+                        )}
+
+                        {/* Category (if enabled) */}
+                        {visibleColumns.category && (
+                          <td className="py-3 px-3.5 whitespace-nowrap text-slate-600 font-medium">
+                            {row.category}
+                          </td>
+                        )}
+
+                        {/* Actions */}
+                        <td
+                          className="py-3 px-3.5 whitespace-nowrap text-right"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {!row.isAwareness && (
+                            <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                onClick={() => handleStartEdit(row)}
+                                className="rounded p-1 text-slate-400 hover:bg-purple-100 hover:text-[#57068c] transition-colors cursor-pointer"
+                                title="Edit Event"
+                              >
+                                <Edit2 className="h-3.5 w-3.5" />
+                              </button>
+                              {onDeleteEvent && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    if (confirm(`Are you sure you want to delete "${row.title}"?`)) {
+                                      onDeleteEvent(row.id);
+                                    }
+                                  }}
+                                  className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+                                  title="Delete Event"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              )}
+                            </div>
                           )}
-                        </div>
-                      )}
-                    </td>
-                  </tr>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
 

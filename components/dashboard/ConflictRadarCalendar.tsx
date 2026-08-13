@@ -265,7 +265,7 @@ export function ConflictRadarCalendar({
                             badgeBg
                           )}
                         >
-                          <span>{isMulti ? (isStart ? `🚩 ${awr.title}` : `• ${awr.title}`) : `🗓️ ${awr.title}`}</span>
+                          <span className="truncate">{isMulti ? (isStart ? awr.title : `• ${awr.title}`) : awr.title}</span>
                         </div>
                       );
                     })}
@@ -349,7 +349,7 @@ export function ConflictRadarCalendar({
           </span>
         </div>
         <span className="text-[11px] text-slate-500 font-semibold">
-          💡 Click any event card to view 8-week & 6-week milestones
+          Click any event card to view 8-week & 6-week milestones
         </span>
       </div>
     </div>

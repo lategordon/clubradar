@@ -13,6 +13,9 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
+  duplicateEvent,
+  updateAwarenessEvent,
+  deleteAwarenessEvent,
 } from '@/lib/data-service';
 import {
   EnrichedEvent,
@@ -30,12 +33,13 @@ import {
   User,
   MapPin,
   Plus,
+  CheckCircle2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 type CalendarViewMode = 'grid' | 'table';
-type FilterChipId = 'all' | 'urgent' | 'my-events' | 'sf' | 'east-bay' | 'south-bay' | 'q4-2026' | 'q1-2027';
+type FilterChipId = 'all' | 'upcoming' | 'completed' | 'urgent' | 'my-events' | 'sf' | 'east-bay' | 'south-bay' | 'q4-2026' | 'q1-2027';
 
 interface FilterChipItem {
   id: FilterChipId;
@@ -49,7 +53,7 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<EnrichedEvent[]>([]);
   const [awarenessEvents, setAwarenessEvents] = useState<AwarenessEvent[]>([]);
   const [viewMode, setViewMode] = useState<CalendarViewMode>('table');
-  const [quickFilter, setQuickFilter] = useState<FilterChipId>('all');
+  const [quickFilter, setQuickFilter] = useState<FilterChipId>('upcoming');
   const [loading, setLoading] = useState(true);
 
   // Modals
@@ -92,6 +96,12 @@ export default function CalendarPage() {
   // Filtered Events
   const filteredEvents = useMemo(() => {
     return events.filter((evt) => {
+      if (quickFilter === 'upcoming') {
+        return evt.status !== 'Completed';
+      }
+      if (quickFilter === 'completed') {
+        return evt.status === 'Completed';
+      }
       if (quickFilter === 'urgent') {
         return (
           evt.deadlines.isSixWeekUrgent ||
@@ -129,7 +139,7 @@ export default function CalendarPage() {
   const handleCreateEvent = async (newEventData: Omit<DatabaseEvent, 'id' | 'created_at' | 'updated_at'>) => {
     await createEvent(newEventData);
     await loadData();
-    addToast('🎉 Event Created', `"${newEventData.title}" added to calendar.`, 'success');
+    addToast('Event Created', `"${newEventData.title}" added to calendar.`, 'success');
   };
 
   const handleUpdateEvent = async (id: string, updates: Partial<DatabaseEvent>) => {
@@ -138,13 +148,37 @@ export default function CalendarPage() {
     if (selectedEvent && selectedEvent.id === id) {
       setSelectedEvent((prev) => (prev ? { ...prev, ...updates } : null));
     }
-    addToast('Event Updated', 'Changes saved successfully.', 'info');
+    addToast('Event Updated', 'Changes saved successfully.', 'purple');
   };
 
   const handleDeleteEvent = async (id: string) => {
     await deleteEvent(id);
     await loadData();
-    addToast('Event Deleted', 'Event was removed from schedule.', 'warning');
+    addToast('Event Removed', 'Event removed from calendar timeline.', 'warning');
+  };
+
+  const handleDuplicateEvent = async (id: string) => {
+    const duplicated = await duplicateEvent(id);
+    await loadData();
+    if (duplicated) {
+      addToast(
+        'Event Duplicated',
+        `Copied "${duplicated.title}" to ${duplicated.event_date}. Click to edit location or venue.`,
+        'success'
+      );
+    }
+  };
+
+  const handleUpdateAwarenessEvent = async (id: string, updates: Partial<AwarenessEvent>) => {
+    await updateAwarenessEvent(id, updates);
+    await loadData();
+    addToast('Awareness Event Updated', 'Awareness entry saved.', 'info');
+  };
+
+  const handleDeleteAwarenessEvent = async (id: string) => {
+    await deleteAwarenessEvent(id);
+    await loadData();
+    addToast('Awareness Event Removed', 'Awareness entry removed.', 'warning');
   };
 
   const handleUpdateStatus = async (id: string, newStatus: EventStatus) => {
@@ -153,12 +187,23 @@ export default function CalendarPage() {
     if (selectedEvent && selectedEvent.id === id) {
       setSelectedEvent((prev) => (prev ? { ...prev, status: newStatus } : null));
     }
-    const target = events.find((e) => e.id === id);
-    addToast('⚡ Status Advanced', `"${target?.title || 'Event'}" moved to ${newStatus}.`, 'purple');
+    addToast('Status Advanced', `Event moved to ${newStatus}.`, 'purple');
   };
 
   const filterChips: FilterChipItem[] = [
     { id: 'all', label: 'All Events', icon: Sparkles, count: events.length },
+    {
+      id: 'upcoming',
+      label: 'Upcoming & Active',
+      icon: Sparkles,
+      count: events.filter((e) => e.status !== 'Completed').length,
+    },
+    {
+      id: 'completed',
+      label: 'Completed & Past',
+      icon: CheckCircle2,
+      count: events.filter((e) => e.status === 'Completed').length,
+    },
     {
       id: 'urgent',
       label: 'Needs Attention (SLA)',
@@ -310,7 +355,7 @@ export default function CalendarPage() {
               }}
             />
           </div>
-        ) : (
+        ) : viewMode === 'table' ? (
           <div className="w-full space-y-4">
             <EventTableView
               events={filteredEvents}
@@ -320,8 +365,22 @@ export default function CalendarPage() {
                 setIsDetailsOpen(true);
               }}
               onUpdateEvent={handleUpdateEvent}
+              onDuplicateEvent={handleDuplicateEvent}
+              onUpdateAwarenessEvent={handleUpdateAwarenessEvent}
               onDeleteEvent={handleDeleteEvent}
+              onDeleteAwarenessEvent={handleDeleteAwarenessEvent}
               onOpenAddModal={() => setIsAddEventOpen(true)}
+            />
+          </div>
+        ) : (
+          <div className="w-full space-y-4">
+            <QuarterlyListView
+              events={filteredEvents}
+              awarenessEvents={awarenessEvents}
+              onSelectEvent={(e) => {
+                setSelectedEvent(e);
+                setIsDetailsOpen(true);
+              }}
             />
           </div>
         )}
@@ -341,6 +400,7 @@ export default function CalendarPage() {
         open={isDetailsOpen}
         onOpenChange={setIsDetailsOpen}
         onUpdateStatus={handleUpdateStatus}
+        onDuplicate={handleDuplicateEvent}
       />
 
       {/* Toast Notifications Container */}

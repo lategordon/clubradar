@@ -219,12 +219,20 @@ export function PitchIdeaModal({
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1">
-                Pitched By
+                Pitched By (Club Leader)
               </label>
-              <Input
+              <Select
                 value={submittedBy}
                 onChange={(e) => setSubmittedBy(e.target.value)}
-              />
+              >
+                <option value="Leighton Gordon">Leighton Gordon (Club Co-Lead)</option>
+                <option value="Janice K.">Janice K. (VP Programs)</option>
+                <option value="Marcus Vance">Marcus Vance (Tech Lead)</option>
+                <option value="Priya Sharma">Priya Sharma (Social Chair)</option>
+                <option value="David Chen">David Chen (Finance Lead)</option>
+                <option value="Tammy Chen">Tammy Chen (Mentorship Lead)</option>
+                <option value="Adi">Adi (Community Lead)</option>
+              </Select>
             </div>
           </div>
 

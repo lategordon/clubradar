@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight, ChevronLeft, Calendar as CalendarIcon, Filter, Layers, CheckCircle, AlertTriangle } from 'lucide-react';
+import { ChevronDown, ChevronRight, ChevronLeft, Calendar as CalendarIcon, Filter, Layers, CheckCircle, AlertTriangle, Building2 } from 'lucide-react';
 import { EnrichedEvent, AwarenessEvent, EventStatus, EventRegion } from '@/types/database.types';
 import { groupEventsByQuarter, QuarterGroup } from '@/lib/utils/grouping';
 import { Badge } from '@/components/ui/badge';
@@ -253,7 +253,16 @@ export function QuarterlyListView({
                                     className="flex items-center justify-between rounded-lg bg-slate-50/90 hover:bg-slate-100/90 px-3 py-2 text-xs text-slate-900 border border-slate-200/70 transition-colors cursor-pointer"
                                   >
                                     <div className="flex items-center gap-2 font-semibold">
-                                      <span>{isConcept ? '❓' : '👍'}</span>
+                                      <span
+                                        className={cn(
+                                          'h-2 w-2 rounded-full shrink-0',
+                                          isConcept
+                                            ? 'bg-amber-500'
+                                            : isSubmitted
+                                            ? 'bg-purple-600'
+                                            : 'bg-sky-500'
+                                        )}
+                                      />
                                       <span>{evt.title}</span>
                                     </div>
                                     <div className="flex items-center gap-3">
@@ -297,17 +306,7 @@ export function QuarterlyListView({
                                   className="flex items-center justify-between rounded-lg bg-blue-50/50 px-3 py-1.5 text-xs text-slate-800 hover:bg-blue-100/60 transition-colors cursor-pointer"
                                 >
                                   <div className="flex items-center gap-2 font-medium">
-                                    <span>
-                                      {item.title.includes('Halloween')
-                                        ? '🎃'
-                                        : item.title.includes('Christmas')
-                                        ? '🎄'
-                                        : item.title.includes('Lunar')
-                                        ? '🧧'
-                                        : item.title.includes('Holi')
-                                        ? '🎆'
-                                        : '🏛️'}
-                                    </span>
+                                    <Building2 className="h-3.5 w-3.5 text-blue-600 shrink-0" />
                                     <span>{item.title}</span>
                                   </div>
                                   <span className="font-semibold text-slate-600">

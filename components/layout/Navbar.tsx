@@ -19,6 +19,7 @@ import {
   Clock,
   ExternalLink,
   X,
+  Wallet,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -71,8 +72,9 @@ export function Navbar({
   const navItems = [
     { label: 'Dashboard', href: '/', id: 'dashboard', icon: LayoutDashboard },
     { label: 'Calendar', href: '/calendar', id: 'calendar', icon: Calendar },
+    { label: 'Budget', href: '/budget', id: 'budget', icon: Wallet },
     { label: 'Ideas', href: '/ideas', id: 'ideas', icon: Lightbulb, badge: '6' },
-    { label: 'Hosts', href: '/hosts', id: 'hosts', icon: Users },
+    { label: 'Volunteers', href: '/hosts', id: 'hosts', icon: Users },
     { label: 'Reports', href: '/reports', id: 'reports', icon: FileBarChart },
   ];
 

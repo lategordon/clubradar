@@ -124,7 +124,7 @@ export function WorkflowPipeline({
                 <div className="mt-2.5">
                   <div className="flex items-center justify-between text-[11px] font-bold text-amber-950/90 mb-1">
                     <span className="flex items-center gap-1">
-                      👍 Workflow progress
+                      Workflow progress
                     </span>
                     <span>
                       {progressCurrent} / {progressTotal} steps
@@ -213,7 +213,10 @@ export function WorkflowPipeline({
 
                 <div className="mt-2.5">
                   <div className="flex items-center justify-between text-[11px] font-bold text-purple-950 mb-1">
-                    <span className="flex items-center gap-1">👍 Marketing Approved</span>
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="h-3 w-3 text-purple-800" />
+                      <span>Marketing Approved</span>
+                    </span>
                     <span>100% Ready</span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-purple-300/80 shadow-inner">

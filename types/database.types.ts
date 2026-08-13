@@ -10,19 +10,13 @@ export type AwarenessCategory =
 
 export type IdeaStatus = 'Draft' | 'Contacting Vendor' | 'Under Consideration' | 'Ready to Plan' | 'Promoted';
 
-export type UniversityCode = 'NYU' | 'Stanford' | 'UC Berkeley' | 'Columbia' | 'Harvard' | 'MIT' | 'Other';
-
 export interface ClubLeader {
   id: string;
   name: string;
-  university: string;
-  university_short: UniversityCode;
-  university_color: string;
-  chapter: string;
   role: string;
   email: string;
   avatar_initials: string;
-  badge: string;
+  badge?: string;
   bio?: string;
   assigned_events_count?: number;
   sla_compliance_rate?: string;
@@ -57,8 +51,16 @@ export interface DatabaseEvent {
   event_date: string; // YYYY-MM-DD
   status: EventStatus;
   location_name: string;
+  venue_name?: string;
   region: EventRegion;
   cost_per_person: number;
+  budgeted_subsidy?: number;
+  actual_subsidy?: number | null;
+  budget_notes?: string;
+  is_cancelled?: boolean;
+  is_recurring?: boolean;
+  recurrence_pattern?: 'monthly_first_friday' | 'monthly' | 'biweekly' | 'quarterly';
+  recurrence_series_id?: string;
   primary_host: string;
   co_hosts?: string[] | string;
   notes?: string;
@@ -66,6 +68,30 @@ export interface DatabaseEvent {
   workflow_progress_total?: number;
   created_at?: string;
   updated_at?: string;
+}
+
+export interface BudgetItem {
+  id: string;
+  event_id?: string;
+  event_name: string;
+  date: string; // YYYY-MM-DD
+  budgeted: number;
+  actual?: number | null;
+  notes?: string;
+  is_cancelled?: boolean;
+  is_paid_past_fy?: boolean;
+  fiscal_year: string; // e.g. 'FY26', 'FY27'
+  created_at?: string;
+}
+
+export interface FiscalYearSummary {
+  fiscal_year: string; // e.g. 'FY26'
+  label: string; // e.g. 'FY26 (Sept 1, 2025 – Aug 31, 2026)'
+  stipend: number; // e.g. 5000
+  budgeted_total: number;
+  actual_total: number;
+  remaining_stipend: number;
+  is_current: boolean;
 }
 
 export interface AwarenessEvent {

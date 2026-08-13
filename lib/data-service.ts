@@ -1,7 +1,9 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
-import { DatabaseEvent, AwarenessEvent, TaskItem, ActivityLog, EnrichedEvent, EventIdea, ClubLeader } from '@/types/database.types';
-import { INITIAL_EVENTS, INITIAL_AWARENESS_EVENTS, INITIAL_TASKS, INITIAL_ACTIVITY_LOGS, INITIAL_EVENT_IDEAS, INITIAL_CLUB_LEADERS } from '@/lib/mock-data';
+import { DatabaseEvent, AwarenessEvent, TaskItem, ActivityLog, EnrichedEvent, EventIdea, ClubLeader, BudgetItem } from '@/types/database.types';
+import { INITIAL_EVENTS, INITIAL_AWARENESS_EVENTS, INITIAL_TASKS, INITIAL_ACTIVITY_LOGS, INITIAL_EVENT_IDEAS, INITIAL_CLUB_LEADERS, INITIAL_BUDGET_ITEMS } from '@/lib/mock-data';
 import { enrichEvent } from '@/lib/utils/deadlines';
+import { getFiscalYear } from '@/lib/utils/fiscal-year';
+import { calculateNextOccurrence, generateRecurringDates, RecurrencePattern } from '@/lib/utils/recurring';
 
 const EVENTS_STORAGE_KEY = 'nyu_alumni_events_store_v1';
 const IDEAS_STORAGE_KEY = 'nyu_alumni_ideas_store_v2';
@@ -9,6 +11,7 @@ const TASKS_STORAGE_KEY = 'nyu_alumni_tasks_store_v1';
 const LOGS_STORAGE_KEY = 'nyu_alumni_logs_store_v1';
 const AWARENESS_STORAGE_KEY = 'nyu_alumni_awareness_store_v1';
 const LEADERS_STORAGE_KEY = 'nyu_alumni_leaders_store_v1';
+const BUDGET_STORAGE_KEY = 'nyu_alumni_budget_store_v1';
 
 // Local storage helper
 function getStored<T>(key: string, fallback: T): T {
@@ -243,6 +246,53 @@ export async function getAwarenessEvents(): Promise<AwarenessEvent[]> {
   return getStored<AwarenessEvent[]>(AWARENESS_STORAGE_KEY, INITIAL_AWARENESS_EVENTS);
 }
 
+// 8b. Update Awareness Event / Conference
+export async function updateAwarenessEvent(
+  id: string,
+  updates: Partial<AwarenessEvent>
+): Promise<AwarenessEvent | null> {
+  const current = getStored<AwarenessEvent[]>(AWARENESS_STORAGE_KEY, INITIAL_AWARENESS_EVENTS);
+  let updatedRecord: AwarenessEvent | null = null;
+  const updated = current.map((item) => {
+    if (item.id === id) {
+      updatedRecord = { ...item, ...updates };
+      return updatedRecord;
+    }
+    return item;
+  });
+
+  setStored(AWARENESS_STORAGE_KEY, updated);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('awareness_events') as any)
+        .update(updates)
+        .eq('id', id);
+    } catch (e) {
+      console.error('Supabase awareness update error:', e);
+    }
+  }
+
+  return updatedRecord;
+}
+
+// 8c. Delete Awareness Event / Conference
+export async function deleteAwarenessEvent(id: string): Promise<void> {
+  const current = getStored<AwarenessEvent[]>(AWARENESS_STORAGE_KEY, INITIAL_AWARENESS_EVENTS);
+  const updated = current.filter((item) => item.id !== id);
+  setStored(AWARENESS_STORAGE_KEY, updated);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('awareness_events') as any).delete().eq('id', id);
+    } catch (e) {
+      console.error('Supabase awareness delete error:', e);
+    }
+  }
+}
+
 // 9. Fetch Tasks
 export async function getTasks(): Promise<TaskItem[]> {
   if (isSupabaseConfigured && supabase) {
@@ -371,18 +421,6 @@ export async function deleteEvent(id: string): Promise<boolean> {
   return true;
 }
 
-// 14. Update Awareness Event
-export async function updateAwarenessEvent(id: string, updates: Partial<AwarenessEvent>): Promise<AwarenessEvent | null> {
-  const current = getStored<AwarenessEvent[]>(AWARENESS_STORAGE_KEY, INITIAL_AWARENESS_EVENTS);
-  const index = current.findIndex((a) => a.id === id);
-  if (index === -1) return null;
-
-  const updatedRecord = { ...current[index], ...updates };
-  current[index] = updatedRecord;
-  setStored(AWARENESS_STORAGE_KEY, current);
-  return updatedRecord;
-}
-
 // 15. Toggle Task
 export async function toggleTask(id: string): Promise<TaskItem[]> {
   const current = getStored<TaskItem[]>(TASKS_STORAGE_KEY, INITIAL_TASKS);
@@ -473,7 +511,7 @@ export async function createClubLeader(
         .select()
         .single();
       if (!error && data) {
-        await addActivityLog('System', 'SYS', `added new club leader "${newLeader.name}"`, newLeader.university);
+        await addActivityLog('System', 'SYS', `added new volunteer "${newLeader.name}"`, newLeader.role || 'Volunteer');
         return data as ClubLeader;
       }
     } catch (e) {
@@ -484,7 +522,7 @@ export async function createClubLeader(
   const current = getStored<ClubLeader[]>(LEADERS_STORAGE_KEY, INITIAL_CLUB_LEADERS);
   const updated = [leaderRecord, ...current];
   setStored(LEADERS_STORAGE_KEY, updated);
-  await addActivityLog('System', 'SYS', `added new club leader "${newLeader.name}"`, newLeader.university);
+  await addActivityLog('System', 'SYS', `added new volunteer "${newLeader.name}"`, newLeader.role || 'Volunteer');
   return leaderRecord;
 }
 
@@ -514,7 +552,63 @@ export async function deleteClubLeader(id: string): Promise<void> {
   setStored(LEADERS_STORAGE_KEY, updated);
 }
 
-// 21. Helper to get all enriched events, ideas, and leaders
+// 21. Get Budget Items
+export async function getBudgetItems(fy?: string): Promise<BudgetItem[]> {
+  const items = getStored<BudgetItem[]>(BUDGET_STORAGE_KEY, INITIAL_BUDGET_ITEMS);
+  if (fy) {
+    return items.filter((item) => item.fiscal_year === fy);
+  }
+  return items;
+}
+
+// 22. Create Budget Item
+export async function createBudgetItem(
+  item: Omit<BudgetItem, 'id' | 'created_at'>
+): Promise<BudgetItem> {
+  const current = getStored<BudgetItem[]>(BUDGET_STORAGE_KEY, INITIAL_BUDGET_ITEMS);
+  const fiscal_year = item.fiscal_year || getFiscalYear(item.date);
+  const newItem: BudgetItem = {
+    ...item,
+    id: `bgt-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    fiscal_year,
+    created_at: new Date().toISOString(),
+  };
+
+  const updated = [newItem, ...current];
+  setStored(BUDGET_STORAGE_KEY, updated);
+  await addActivityLog('System', 'SYS', `added budget line item "${newItem.event_name}" ($${newItem.budgeted})`, fiscal_year);
+  return newItem;
+}
+
+// 23. Update Budget Item
+export async function updateBudgetItem(
+  id: string,
+  updates: Partial<BudgetItem>
+): Promise<BudgetItem | null> {
+  const current = getStored<BudgetItem[]>(BUDGET_STORAGE_KEY, INITIAL_BUDGET_ITEMS);
+  let updatedRecord: BudgetItem | null = null;
+  const updated = current.map((item) => {
+    if (item.id === id) {
+      const date = updates.date || item.date;
+      const fiscal_year = updates.fiscal_year || getFiscalYear(date);
+      updatedRecord = { ...item, ...updates, fiscal_year };
+      return updatedRecord;
+    }
+    return item;
+  });
+
+  setStored(BUDGET_STORAGE_KEY, updated);
+  return updatedRecord;
+}
+
+// 24. Delete Budget Item
+export async function deleteBudgetItem(id: string): Promise<void> {
+  const current = getStored<BudgetItem[]>(BUDGET_STORAGE_KEY, INITIAL_BUDGET_ITEMS);
+  const updated = current.filter((item) => item.id !== id);
+  setStored(BUDGET_STORAGE_KEY, updated);
+}
+
+// 25. Helper to get all enriched events, ideas, leaders, and budget items
 export async function getEnrichedEvents(): Promise<{
   enrichedEvents: EnrichedEvent[];
   awarenessEvents: AwarenessEvent[];
@@ -522,14 +616,16 @@ export async function getEnrichedEvents(): Promise<{
   tasks: TaskItem[];
   activityLogs: ActivityLog[];
   leaders: ClubLeader[];
+  budgetItems: BudgetItem[];
 }> {
-  const [events, awarenessEvents, ideas, tasks, activityLogs, leaders] = await Promise.all([
+  const [events, awarenessEvents, ideas, tasks, activityLogs, leaders, budgetItems] = await Promise.all([
     getEvents(),
     getAwarenessEvents(),
     getEventIdeas(),
     getTasks(),
     getActivityLogs(),
     getClubLeaders(),
+    getBudgetItems(),
   ]);
 
   const enrichedEvents = events.map((event) => enrichEvent(event, awarenessEvents));
@@ -541,6 +637,84 @@ export async function getEnrichedEvents(): Promise<{
     tasks,
     activityLogs,
     leaders,
+    budgetItems,
   };
 }
+
+// 26. Duplicate / Copy Event
+export async function duplicateEvent(
+  id: string,
+  customUpdates?: Partial<DatabaseEvent>
+): Promise<DatabaseEvent | null> {
+  const events = getStored<DatabaseEvent[]>(EVENTS_STORAGE_KEY, INITIAL_EVENTS);
+  const target = events.find((e) => e.id === id);
+  if (!target) return null;
+
+  // Calculate default next occurrence (+1 month) if new date not provided
+  const nextDate = customUpdates?.event_date || calculateNextOccurrence(target.event_date, 'monthly', 1);
+
+  const duplicated: DatabaseEvent = {
+    ...target,
+    ...customUpdates,
+    id: `evt-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+    title: customUpdates?.title || target.title,
+    event_date: nextDate,
+    status: customUpdates?.status || 'Planning',
+    actual_subsidy: null, // Reset actuals on copy
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const updated = [duplicated, ...events];
+  setStored(EVENTS_STORAGE_KEY, updated);
+
+  // If the copied event has a budgeted subsidy, also sync to budget ledger
+  if (duplicated.budgeted_subsidy && duplicated.budgeted_subsidy > 0) {
+    await createBudgetItem({
+      event_id: duplicated.id,
+      event_name: duplicated.title,
+      date: duplicated.event_date,
+      budgeted: duplicated.budgeted_subsidy,
+      actual: null,
+      notes: duplicated.budget_notes || `Copied from ${target.title}`,
+      fiscal_year: getFiscalYear(duplicated.event_date),
+    });
+  }
+
+  await addActivityLog(
+    duplicated.primary_host || 'System',
+    duplicated.primary_host ? duplicated.primary_host.substring(0, 2).toUpperCase() : 'SYS',
+    `copied event "${target.title}" to ${duplicated.event_date}`,
+    duplicated.location_name
+  );
+
+  return duplicated;
+}
+
+// 27. Create Recurring Event Series
+export async function createRecurringEventSeries(
+  baseEvent: Omit<DatabaseEvent, 'id' | 'created_at' | 'updated_at'>,
+  pattern: RecurrencePattern,
+  count: number = 3
+): Promise<DatabaseEvent[]> {
+  const seriesId = `series-${Date.now()}`;
+  const dates = generateRecurringDates(baseEvent.event_date, pattern, count);
+  const createdList: DatabaseEvent[] = [];
+
+  for (let i = 0; i < dates.length; i++) {
+    const eventDate = dates[i];
+    const newEvent = await createEvent({
+      ...baseEvent,
+      event_date: eventDate,
+      is_recurring: true,
+      recurrence_pattern: pattern,
+      recurrence_series_id: seriesId,
+    });
+    createdList.push(newEvent);
+  }
+
+  return createdList;
+}
+
+
 

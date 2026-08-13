@@ -22,9 +22,12 @@ import {
   SlidersHorizontal,
   Eye,
   RotateCcw,
+  Copy,
+  Repeat,
 } from 'lucide-react';
 import { EnrichedEvent, AwarenessEvent, EventStatus, EventRegion, DatabaseEvent } from '@/types/database.types';
 import { DEFAULT_CURRENT_DATE, calculateEventDeadlines } from '@/lib/utils/deadlines';
+import { updateAwarenessEvent, deleteAwarenessEvent } from '@/lib/data-service';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -181,42 +184,62 @@ function MultiSelectDropdown({
 export function getQuarterInfo(dateString: string) {
   try {
     const d = parseISO(dateString);
-    if (!isValid(d)) return { key: 'Other', title: 'Other Dates', qNum: 'Q', range: '', year: '' };
+    if (!isValid(d)) return { quarterKey: 'Q4 2026', quarterNum: 'Q4', quarterTitle: 'Quarter 4', quarterRange: 'Oct - Dec 2026' };
     const month = d.getMonth(); // 0-11
     const year = d.getFullYear();
-    if (month >= 0 && month <= 2) {
-      return { key: `Q1-${year}`, title: `Q1 ${year}`, qNum: 'Q1', range: `Jan – Mar ${year}`, year: `${year}` };
+
+    if (month >= 9 && month <= 11) {
+      return {
+        quarterKey: `Q4 ${year}`,
+        quarterNum: 'Q4',
+        quarterTitle: `Quarter 4`,
+        quarterRange: `Oct - Dec ${year}`,
+      };
+    } else if (month >= 0 && month <= 2) {
+      return {
+        quarterKey: `Q1 ${year}`,
+        quarterNum: 'Q1',
+        quarterTitle: `Quarter 1`,
+        quarterRange: `Jan - Mar ${year}`,
+      };
     } else if (month >= 3 && month <= 5) {
-      return { key: `Q2-${year}`, title: `Q2 ${year}`, qNum: 'Q2', range: `Apr – Jun ${year}`, year: `${year}` };
-    } else if (month >= 6 && month <= 8) {
-      return { key: `Q3-${year}`, title: `Q3 ${year}`, qNum: 'Q3', range: `Jul – Sep ${year}`, year: `${year}` };
+      return {
+        quarterKey: `Q2 ${year}`,
+        quarterNum: 'Q2',
+        quarterTitle: `Quarter 2`,
+        quarterRange: `Apr - Jun ${year}`,
+      };
     } else {
-      return { key: `Q4-${year}`, title: `Q4 ${year}`, qNum: 'Q4', range: `Oct – Dec ${year}`, year: `${year}` };
+      return {
+        quarterKey: `Q3 ${year}`,
+        quarterNum: 'Q3',
+        quarterTitle: `Quarter 3`,
+        quarterRange: `Jul - Sep ${year}`,
+      };
     }
   } catch {
-    return { key: 'Other', title: 'Other Dates', qNum: 'Q', range: '', year: '' };
+    return { quarterKey: 'Q4 2026', quarterNum: 'Q4', quarterTitle: 'Quarter 4', quarterRange: 'Oct - Dec 2026' };
   }
 }
 
 export interface TableRowItem {
   id: string;
   isAwareness: boolean;
-  title: string;
-  startDate: string; // YYYY-MM-DD
+  startDate: string;
   endDate?: string;
-  monthFormatted: string; // e.g. "October" (Month only)
-  fullDateFormatted: string; // e.g. "Oct 8, 2026"
+  monthFormatted: string; // "October"
+  fullDateFormatted: string; // "October 16, 2026" or "Oct 5 - 11, 2026"
   quarterKey: string;
-  quarterTitle: string;
   quarterNum: string;
+  quarterTitle: string;
   quarterRange: string;
-  weeksFromToday: number; // rounded up whole number
+  weeksFromToday: number;
   weeksLabel: string;
-  isUrgent6w: boolean;
-  isUrgent8w: boolean;
+  isUrgent6w?: boolean;
+  isUrgent8w?: boolean;
+  title: string;
   location: string;
   cost: number;
-  costFormatted: string;
   status: EventStatus | 'Awareness' | 'Holiday' | 'Conference';
   category: string;
   primaryHost: string;
@@ -231,7 +254,10 @@ interface EventTableViewProps {
   awarenessEvents: AwarenessEvent[];
   onSelectEvent: (event: EnrichedEvent) => void;
   onUpdateEvent: (id: string, updates: Partial<DatabaseEvent>) => Promise<void>;
+  onDuplicateEvent?: (id: string) => Promise<void>;
+  onUpdateAwarenessEvent?: (id: string, updates: Partial<AwarenessEvent>) => Promise<void>;
   onDeleteEvent?: (id: string) => Promise<void>;
+  onDeleteAwarenessEvent?: (id: string) => Promise<void>;
   onOpenAddModal: () => void;
 }
 
@@ -240,7 +266,10 @@ export function EventTableView({
   awarenessEvents,
   onSelectEvent,
   onUpdateEvent,
+  onDuplicateEvent,
+  onUpdateAwarenessEvent,
   onDeleteEvent,
+  onDeleteAwarenessEvent,
   onOpenAddModal,
 }: EventTableViewProps) {
   // Reference date (Simulation Date: August 11, 2026)
@@ -248,6 +277,7 @@ export function EventTableView({
 
   // Search & Multi-Select Filter state
   const [searchQuery, setSearchQuery] = useState('');
+  const [eventScope, setEventScope] = useState<'all' | 'upcoming' | 'completed'>('upcoming');
   const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
@@ -276,7 +306,6 @@ export function EventTableView({
     }));
   };
 
-  // Inline editing state
   const [editingRowId, setEditingRowId] = useState<string | null>(null);
   const [editFormData, setEditFormData] = useState<{
     title: string;
@@ -286,6 +315,8 @@ export function EventTableView({
     status: EventStatus;
     primaryHost: string;
     coHosts: string;
+    isAwareness?: boolean;
+    category?: string;
   }>({
     title: '',
     startDate: '',
@@ -294,49 +325,39 @@ export function EventTableView({
     status: 'Planning',
     primaryHost: '',
     coHosts: '',
+    isAwareness: false,
+    category: 'Alumni Event',
   });
 
-  // Transform events and awareness events into unified table rows
   const tableData: TableRowItem[] = useMemo(() => {
     const rows: TableRowItem[] = [];
 
-    // 1. Alumni Events
     events.forEach((evt) => {
       const evtDate = parseISO(evt.event_date);
       const daysDiff = isValid(evtDate) ? differenceInCalendarDays(evtDate, currentDate) : 0;
-      // Round up to nearest whole number
-      const weeksAway = daysDiff > 0 ? Math.ceil(daysDiff / 7) : Math.floor(daysDiff / 7);
-
-      let weeksLabel = `${weeksAway} wks`;
-      if (daysDiff < 0) {
-        weeksLabel = `${Math.abs(weeksAway)} wks ago`;
-      } else if (daysDiff === 0) {
-        weeksLabel = 'Today';
-      }
-
-      const isUrgent6w = evt.deadlines?.isSixWeekUrgent || Math.abs(daysDiff - 42) <= 7;
-      const isUrgent8w = evt.deadlines?.isEightWeekUrgent || Math.abs(daysDiff - 56) <= 7;
-
-      const qInfo = getQuarterInfo(evt.event_date);
+      const weeksExact = daysDiff / 7;
+      const weeksRounded = Math.ceil(weeksExact);
+      const monthOnly = isValid(evtDate) ? format(evtDate, 'MMMM') : 'Unknown';
+      const fullDateStr = isValid(evtDate) ? format(evtDate, 'MMMM d, yyyy') : evt.event_date;
+      const quarter = getQuarterInfo(evt.event_date);
 
       rows.push({
         id: evt.id,
         isAwareness: false,
-        title: evt.title,
         startDate: evt.event_date,
-        monthFormatted: isValid(evtDate) ? format(evtDate, 'MMMM') : '', // Month only (no year)
-        fullDateFormatted: isValid(evtDate) ? format(evtDate, 'MMM d, yyyy') : evt.event_date,
-        quarterKey: qInfo.key,
-        quarterTitle: qInfo.title,
-        quarterNum: qInfo.qNum,
-        quarterRange: qInfo.range,
-        weeksFromToday: weeksAway,
-        weeksLabel,
-        isUrgent6w,
-        isUrgent8w,
+        monthFormatted: monthOnly,
+        fullDateFormatted: fullDateStr,
+        quarterKey: quarter.quarterKey,
+        quarterNum: quarter.quarterNum,
+        quarterTitle: quarter.quarterTitle,
+        quarterRange: quarter.quarterRange,
+        weeksFromToday: weeksRounded,
+        weeksLabel: weeksRounded > 0 ? `${weeksRounded} wks` : 'Past',
+        isUrgent6w: evt.deadlines.isSixWeekUrgent,
+        isUrgent8w: evt.deadlines.isEightWeekUrgent,
+        title: evt.title,
         location: evt.location_name,
         cost: evt.cost_per_person,
-        costFormatted: evt.cost_per_person > 0 ? `$${evt.cost_per_person}` : 'Free',
         status: evt.status,
         category: 'Alumni Event',
         primaryHost: evt.primary_host,
@@ -346,54 +367,50 @@ export function EventTableView({
       });
     });
 
-    // 2. Awareness & Community Events
     awarenessEvents.forEach((awr) => {
-      const startDate = parseISO(awr.start_date);
-      const daysDiff = isValid(startDate) ? differenceInCalendarDays(startDate, currentDate) : 0;
-      // Round up to nearest whole number
-      const weeksAway = daysDiff > 0 ? Math.ceil(daysDiff / 7) : Math.floor(daysDiff / 7);
+      const startDateObj = parseISO(awr.start_date);
+      const daysDiff = isValid(startDateObj) ? differenceInCalendarDays(startDateObj, currentDate) : 0;
+      const weeksExact = daysDiff / 7;
+      const weeksRounded = Math.ceil(weeksExact);
+      const monthOnly = isValid(startDateObj) ? format(startDateObj, 'MMMM') : 'Unknown';
 
-      let fullDate = awr.start_date;
-      if (isValid(startDate)) {
+      let fullDateStr = awr.start_date;
+      if (isValid(startDateObj)) {
         if (awr.end_date && awr.end_date !== awr.start_date) {
-          const endDate = parseISO(awr.end_date);
-          fullDate = `${format(startDate, 'MMM d')} – ${isValid(endDate) ? format(endDate, 'MMM d, yyyy') : awr.end_date}`;
+          const endDateObj = parseISO(awr.end_date);
+          if (isValid(endDateObj)) {
+            fullDateStr = `${format(startDateObj, 'MMM d')} – ${format(endDateObj, 'MMM d, yyyy')}`;
+          } else {
+            fullDateStr = format(startDateObj, 'MMMM d, yyyy');
+          }
         } else {
-          fullDate = format(startDate, 'MMM d, yyyy');
+          fullDateStr = format(startDateObj, 'MMMM d, yyyy');
         }
       }
 
-      let weeksLabel = `${weeksAway} wks`;
-      if (daysDiff < 0) {
-        weeksLabel = `${Math.abs(weeksAway)} wks ago`;
-      } else if (daysDiff === 0) {
-        weeksLabel = 'Today';
-      }
-
-      const qInfo = getQuarterInfo(awr.start_date);
+      const quarter = getQuarterInfo(awr.start_date);
 
       rows.push({
         id: awr.id,
         isAwareness: true,
-        title: awr.title,
         startDate: awr.start_date,
         endDate: awr.end_date,
-        monthFormatted: isValid(startDate) ? format(startDate, 'MMMM') : '', // Month only
-        fullDateFormatted: fullDate,
-        quarterKey: qInfo.key,
-        quarterTitle: qInfo.title,
-        quarterNum: qInfo.qNum,
-        quarterRange: qInfo.range,
-        weeksFromToday: weeksAway,
-        weeksLabel,
+        monthFormatted: monthOnly,
+        fullDateFormatted: fullDateStr,
+        quarterKey: quarter.quarterKey,
+        quarterNum: quarter.quarterNum,
+        quarterTitle: quarter.quarterTitle,
+        quarterRange: quarter.quarterRange,
+        weeksFromToday: weeksRounded,
+        weeksLabel: weeksRounded > 0 ? `${weeksRounded} wks` : 'Past',
         isUrgent6w: false,
-        isUrgent8w: awr.title.includes('Social Event'),
-        location: awr.location,
+        isUrgent8w: false,
+        title: awr.title,
+        location: awr.location || 'San Francisco',
         cost: 0,
-        costFormatted: '—',
         status: awr.category === 'Community / Conference' ? 'Conference' : 'Holiday',
         category: awr.category,
-        primaryHost: awr.title.includes('SOCAP') ? 'Tammy Chen' : awr.title.includes('Social') ? 'Leighton Gordon' : 'City / Community',
+        primaryHost: 'Awareness / City',
         coHosts: [],
         notes: awr.notes,
         rawAwareness: awr,
@@ -403,7 +420,6 @@ export function EventTableView({
     return rows;
   }, [events, awarenessEvents, currentDate]);
 
-  // Extract unique filter options with item counts
   const monthFilterOptions = useMemo(() => {
     const counts: Record<string, number> = {};
     tableData.forEach((r) => {
@@ -421,7 +437,7 @@ export function EventTableView({
     tableData.forEach((r) => {
       counts[r.status] = (counts[r.status] || 0) + 1;
     });
-    const statuses = ['Submitted', 'Planning', 'Idea', 'Confirmed', 'Conference', 'Holiday'];
+    const statuses = ['Submitted', 'Planning', 'Idea', 'Confirmed', 'Completed', 'Conference', 'Holiday'];
     return statuses.map((s) => ({
       label: s === 'Holiday' ? 'Holiday / Civic' : s,
       value: s,
@@ -454,10 +470,34 @@ export function EventTableView({
     }));
   }, [tableData]);
 
-  // Filtered and sorted data (Multi-Select Supported)
+  // Counts for scope segment tabs
+  const scopeCounts = useMemo(() => {
+    const upcoming = tableData.filter(
+      (r) => r.status !== 'Completed' && (r.weeksFromToday > 0 || r.isAwareness)
+    ).length;
+    const completed = tableData.filter(
+      (r) => r.status === 'Completed' || (r.weeksFromToday <= 0 && !r.isAwareness)
+    ).length;
+    return {
+      all: tableData.length,
+      upcoming,
+      completed,
+    };
+  }, [tableData]);
+
   const filteredData = useMemo(() => {
     const result = tableData.filter((row) => {
-      // Search
+      // Event Scope Filter
+      if (eventScope === 'upcoming') {
+        if (row.status === 'Completed' || (row.weeksFromToday <= 0 && !row.isAwareness)) {
+          return false;
+        }
+      } else if (eventScope === 'completed') {
+        if (row.status !== 'Completed' && row.weeksFromToday > 0) {
+          return false;
+        }
+      }
+
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
         const matchTitle = row.title.toLowerCase().includes(q);
@@ -469,22 +509,18 @@ export function EventTableView({
         if (!matchTitle && !matchLoc && !matchHost && !matchCategory) return false;
       }
 
-      // Multi-Select Month
       if (selectedMonths.length > 0 && !selectedMonths.includes(row.monthFormatted)) {
         return false;
       }
 
-      // Multi-Select Status
       if (selectedStatuses.length > 0 && !selectedStatuses.includes(row.status)) {
         return false;
       }
 
-      // Multi-Select Category
       if (selectedCategories.length > 0 && !selectedCategories.includes(row.category)) {
         return false;
       }
 
-      // Multi-Select Host
       if (selectedHosts.length > 0) {
         const hostMatches = selectedHosts.some(
           (h) => row.primaryHost.includes(h) || row.coHosts.some((ch) => ch.includes(h))
@@ -495,7 +531,6 @@ export function EventTableView({
       return true;
     });
 
-    // Sort
     result.sort((a, b) => {
       let cmp = 0;
       if (sortBy === 'date') {
@@ -539,9 +574,7 @@ export function EventTableView({
     setSelectedHosts([]);
   };
 
-  // Start inline editing
   const handleStartEdit = (row: TableRowItem) => {
-    if (row.isAwareness) return;
     setEditingRowId(row.id);
     setEditFormData({
       title: row.title,
@@ -551,25 +584,39 @@ export function EventTableView({
       status: (row.status as EventStatus) || 'Planning',
       primaryHost: row.primaryHost,
       coHosts: row.coHosts.join(', '),
+      isAwareness: row.isAwareness,
+      category: row.category,
     });
   };
 
-  // Save inline edit
   const handleSaveEdit = async (id: string) => {
-    const coHostsArray = editFormData.coHosts
-      .split(',')
-      .map((h) => h.trim())
-      .filter(Boolean);
+    const row = tableData.find((r) => r.id === id);
+    if (row?.isAwareness) {
+      if (onUpdateAwarenessEvent) {
+        await onUpdateAwarenessEvent(id, {
+          title: editFormData.title,
+          start_date: editFormData.startDate,
+          end_date: editFormData.startDate,
+          location: editFormData.location,
+          category: (editFormData.category as any) || 'Community / Conference',
+        });
+      }
+    } else {
+      const coHostsArray = (editFormData.coHosts || '')
+        .split(',')
+        .map((h) => h.trim())
+        .filter(Boolean);
 
-    await onUpdateEvent(id, {
-      title: editFormData.title,
-      event_date: editFormData.startDate,
-      location_name: editFormData.location,
-      cost_per_person: Number(editFormData.cost) || 0,
-      status: editFormData.status,
-      primary_host: editFormData.primaryHost,
-      co_hosts: coHostsArray,
-    });
+      await onUpdateEvent(id, {
+        title: editFormData.title,
+        event_date: editFormData.startDate,
+        location_name: editFormData.location,
+        cost_per_person: Number(editFormData.cost) || 0,
+        status: editFormData.status,
+        primary_host: editFormData.primaryHost,
+        co_hosts: coHostsArray,
+      });
+    }
     setEditingRowId(null);
   };
 
@@ -582,11 +629,9 @@ export function EventTableView({
       setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'));
     } else {
       setSortBy(field);
-      setSortOrder('asc');
     }
   };
 
-  // Host avatar initials helper
   const getAvatarBadge = (name: string, coHosts: string[] = []) => {
     if (name.toLowerCase().includes('leighton')) return 'L&A';
     if (name.toLowerCase().includes('janice')) return 'J';
@@ -596,7 +641,6 @@ export function EventTableView({
     return name.substring(0, 2).toUpperCase();
   };
 
-  // Row styling based on status / type to differentiate each event with distinct colors
   const getRowStyling = (row: TableRowItem) => {
     if (row.isAwareness) {
       if (row.status === 'Conference' || row.category === 'Community / Conference') {
@@ -604,14 +648,12 @@ export function EventTableView({
           bg: 'bg-indigo-50/40 hover:bg-indigo-100/60 border-l-[5px] border-l-indigo-500 text-slate-900',
           dot: 'bg-indigo-500',
           badgeVariant: 'community' as const,
-          icon: '🏛️',
         };
       }
       return {
         bg: 'bg-stone-50/70 hover:bg-stone-100/80 border-l-[5px] border-l-stone-400 text-slate-800',
         dot: 'bg-stone-500',
         badgeVariant: 'secondary' as const,
-        icon: '🗓️',
       };
     }
 
@@ -621,42 +663,36 @@ export function EventTableView({
           bg: 'bg-emerald-50/50 hover:bg-emerald-100/70 border-l-[5px] border-l-emerald-600 text-slate-900',
           dot: 'bg-emerald-600',
           badgeVariant: 'confirmed' as const,
-          icon: '✅',
         };
       case 'Submitted':
         return {
           bg: 'bg-purple-50/60 hover:bg-purple-100/80 border-l-[5px] border-l-[#57068c] text-slate-900',
           dot: 'bg-[#57068c]',
           badgeVariant: 'submitted' as const,
-          icon: '📨',
         };
       case 'Planning':
         return {
           bg: 'bg-sky-50/50 hover:bg-sky-100/70 border-l-[5px] border-l-sky-500 text-slate-900',
           dot: 'bg-sky-600',
           badgeVariant: 'planning' as const,
-          icon: '📝',
         };
       case 'Idea':
         return {
           bg: 'bg-amber-50/50 hover:bg-amber-100/70 border-l-[5px] border-l-amber-500 text-slate-900',
           dot: 'bg-amber-500',
           badgeVariant: 'idea' as const,
-          icon: '💡',
         };
       case 'Completed':
         return {
           bg: 'bg-slate-100/60 hover:bg-slate-200/60 border-l-[5px] border-l-slate-400 text-slate-600',
           dot: 'bg-slate-400',
           badgeVariant: 'secondary' as const,
-          icon: '🏁',
         };
       default:
         return {
           bg: 'bg-white hover:bg-slate-50 border-l-[5px] border-l-slate-300 text-slate-900',
           dot: 'bg-slate-400',
           badgeVariant: 'secondary' as const,
-          icon: '📌',
         };
     }
   };
@@ -676,6 +712,63 @@ export function EventTableView({
     <div className="space-y-4">
       {/* Controls & Filter Bar */}
       <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-xs space-y-3">
+        {/* Scope Segment Tabs: All, Upcoming, Completed */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pb-2.5 border-b border-slate-100">
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => setEventScope('all')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer select-none',
+                eventScope === 'all'
+                  ? 'bg-[#57068c] text-white shadow-2xs'
+                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+              )}
+            >
+              <span>All Events</span>
+              <span className={cn('text-[10px] px-1.5 py-0.2 rounded-full font-bold', eventScope === 'all' ? 'bg-purple-800 text-purple-100' : 'bg-slate-200 text-slate-600')}>
+                {scopeCounts.all}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEventScope('upcoming')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer select-none',
+                eventScope === 'upcoming'
+                  ? 'bg-[#57068c] text-white shadow-2xs'
+                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+              )}
+            >
+              <span>Upcoming & Planning</span>
+              <span className={cn('text-[10px] px-1.5 py-0.2 rounded-full font-bold', eventScope === 'upcoming' ? 'bg-purple-800 text-purple-100' : 'bg-emerald-100 text-emerald-800')}>
+                {scopeCounts.upcoming}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setEventScope('completed')}
+              className={cn(
+                'flex items-center gap-1.5 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all cursor-pointer select-none',
+                eventScope === 'completed'
+                  ? 'bg-[#57068c] text-white shadow-2xs'
+                  : 'bg-slate-50 text-slate-700 hover:bg-slate-100 border border-slate-200'
+              )}
+            >
+              <span>Completed & Past Events</span>
+              <span className={cn('text-[10px] px-1.5 py-0.2 rounded-full font-bold', eventScope === 'completed' ? 'bg-purple-800 text-purple-100' : 'bg-slate-200 text-slate-700')}>
+                {scopeCounts.completed}
+              </span>
+            </button>
+          </div>
+
+          <div className="text-[11px] text-slate-500 font-medium hidden sm:block">
+            Showing <strong>{filteredData.length}</strong> {eventScope === 'completed' ? 'completed past' : eventScope === 'upcoming' ? 'upcoming' : 'total'} items
+          </div>
+        </div>
+
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Search Box */}
           <div className="relative flex-1 min-w-[240px] max-w-md">
@@ -1057,47 +1150,75 @@ export function EventTableView({
                         {/* Cost Input (if visible) */}
                         {visibleColumns.cost && (
                           <td className="py-2.5 px-3.5">
-                            <Input
-                              type="number"
-                              value={editFormData.cost}
-                              onChange={(e) => setEditFormData({ ...editFormData, cost: Number(e.target.value) })}
-                              className="h-8 text-xs w-20 bg-white"
-                            />
+                            {editFormData.isAwareness ? (
+                              <span className="text-slate-400 text-xs italic">—</span>
+                            ) : (
+                              <Input
+                                type="number"
+                                value={editFormData.cost}
+                                onChange={(e) => setEditFormData({ ...editFormData, cost: Number(e.target.value) })}
+                                className="h-8 text-xs w-20 bg-white"
+                              />
+                            )}
                           </td>
                         )}
 
                         {/* Status Dropdown */}
                         {visibleColumns.status && (
                           <td className="py-2.5 px-3.5">
-                            <select
-                              value={editFormData.status}
-                              onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as EventStatus })}
-                              className="h-8 rounded-md border border-purple-300 bg-white px-2 text-xs font-medium focus:ring-1 focus:ring-purple-600"
-                            >
-                              <option value="Idea">Idea</option>
-                              <option value="Planning">Planning</option>
-                              <option value="Submitted">Submitted</option>
-                              <option value="Confirmed">Confirmed</option>
-                            </select>
+                            {editFormData.isAwareness ? (
+                              <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200">
+                                {editFormData.category === 'Community / Conference' ? 'Conference' : 'Holiday'}
+                              </span>
+                            ) : (
+                              <select
+                                value={editFormData.status}
+                                onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as EventStatus })}
+                                className="h-8 rounded-md border border-purple-300 bg-white px-2 text-xs font-medium focus:ring-1 focus:ring-purple-600"
+                              >
+                                <option value="Idea">Idea</option>
+                                <option value="Planning">Planning</option>
+                                <option value="Submitted">Submitted</option>
+                                <option value="Confirmed">Confirmed</option>
+                                <option value="Completed">Completed</option>
+                              </select>
+                            )}
                           </td>
                         )}
 
                         {/* Hosts Input */}
                         {visibleColumns.host && (
                           <td className="py-2.5 px-3.5">
-                            <Input
-                              placeholder="Primary Host"
-                              value={editFormData.primaryHost}
-                              onChange={(e) => setEditFormData({ ...editFormData, primaryHost: e.target.value })}
-                              className="h-8 text-xs bg-white"
-                            />
+                            {editFormData.isAwareness ? (
+                              <span className="text-slate-400 text-xs italic">City / Community</span>
+                            ) : (
+                              <Input
+                                placeholder="Primary Host"
+                                value={editFormData.primaryHost}
+                                onChange={(e) => setEditFormData({ ...editFormData, primaryHost: e.target.value })}
+                                className="h-8 text-xs bg-white"
+                              />
+                            )}
                           </td>
                         )}
 
                         {/* Category */}
                         {visibleColumns.category && (
                           <td className="py-2.5 px-3.5 font-medium text-slate-600">
-                            {row.category}
+                            {editFormData.isAwareness ? (
+                              <select
+                                value={editFormData.category}
+                                onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                                className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs font-medium focus:ring-1 focus:ring-purple-600"
+                              >
+                                <option value="Community / Conference">Community / Conference</option>
+                                <option value="Civic / Holiday">Civic / Holiday</option>
+                                <option value="Cultural">Cultural</option>
+                                <option value="Campus / Sports">Campus / Sports</option>
+                              </select>
+                            ) : (
+                              row.category
+                            )}
                           </td>
                         )}
 
@@ -1180,23 +1301,26 @@ export function EventTableView({
                         {/* Event Idea */}
                         {visibleColumns.idea && (
                           <td className="py-3 px-3.5 font-bold text-slate-900">
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm">{styling.icon}</span>
-                              <div>
-                                <span className="group-hover:text-[#57068c] transition-colors leading-snug">{row.title}</span>
-                                {row.notes && (
-                                  <p className="text-[11px] font-normal text-slate-500 line-clamp-1 mt-0.5">
-                                    {row.notes}
-                                  </p>
-                                )}
-                              </div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="group-hover:text-[#57068c] transition-colors">{row.title}</span>
+                              {row.rawEvent?.is_recurring && (
+                                <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.2 text-[9px] font-extrabold uppercase tracking-wide bg-purple-100 text-[#57068c] border border-purple-200" title="Recurring Series">
+                                  <Repeat className="h-2.5 w-2.5" />
+                                  <span>Series</span>
+                                </span>
+                              )}
+                              {row.isAwareness && (
+                                <span className="rounded px-1.5 py-0.2 text-[9px] font-extrabold uppercase tracking-wide bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                  City Awareness
+                                </span>
+                              )}
                             </div>
                           </td>
                         )}
 
                         {/* Location */}
                         {visibleColumns.location && (
-                          <td className="py-3 px-3.5 whitespace-nowrap text-slate-600 font-medium">
+                          <td className="py-3 px-3.5 whitespace-nowrap text-slate-600">
                             <span className="flex items-center gap-1">
                               <MapPin className="h-3 w-3 text-slate-400" />
                               <span>{row.location}</span>
@@ -1207,7 +1331,13 @@ export function EventTableView({
                         {/* Cost (Togglable) */}
                         {visibleColumns.cost && (
                           <td className="py-3 px-3.5 whitespace-nowrap font-bold text-slate-800">
-                            {row.costFormatted}
+                            {row.isAwareness ? (
+                              <span className="text-slate-400 font-normal italic">—</span>
+                            ) : row.cost > 0 ? (
+                              `$${row.cost}`
+                            ) : (
+                              'Free'
+                            )}
                           </td>
                         )}
 
@@ -1250,32 +1380,50 @@ export function EventTableView({
                           className="py-3 px-3.5 whitespace-nowrap text-right"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          {!row.isAwareness && (
-                            <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                          <div className="flex items-center justify-end gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                            {!row.isAwareness && (
                               <button
                                 type="button"
-                                onClick={() => handleStartEdit(row)}
+                                onClick={async () => {
+                                  if (onDuplicateEvent) {
+                                    await onDuplicateEvent(row.id);
+                                  }
+                                }}
                                 className="rounded p-1 text-slate-400 hover:bg-purple-100 hover:text-[#57068c] transition-colors cursor-pointer"
-                                title="Edit Event"
+                                title="Duplicate / Copy Event to Next Month"
                               >
-                                <Edit2 className="h-3.5 w-3.5" />
+                                <Copy className="h-3.5 w-3.5" />
                               </button>
-                              {onDeleteEvent && (
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    if (confirm(`Are you sure you want to delete "${row.title}"?`)) {
-                                      onDeleteEvent(row.id);
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => handleStartEdit(row)}
+                              className="rounded p-1 text-slate-400 hover:bg-purple-100 hover:text-[#57068c] transition-colors cursor-pointer"
+                              title={row.isAwareness ? "Edit Conference / Awareness" : "Edit Event / Location"}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (confirm(`Are you sure you want to delete "${row.title}"?`)) {
+                                  if (row.isAwareness) {
+                                    if (onDeleteAwarenessEvent) {
+                                      await onDeleteAwarenessEvent(row.id);
+                                    } else {
+                                      await deleteAwarenessEvent(row.id);
                                     }
-                                  }}
-                                  className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
-                                  title="Delete Event"
-                                >
-                                  <Trash2 className="h-3.5 w-3.5" />
-                                </button>
-                              )}
-                            </div>
-                          )}
+                                  } else if (onDeleteEvent) {
+                                    await onDeleteEvent(row.id);
+                                  }
+                                }
+                              }}
+                              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+                              title={row.isAwareness ? "Delete Conference / Awareness" : "Delete Event"}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     )}

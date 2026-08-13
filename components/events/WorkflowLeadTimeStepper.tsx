@@ -106,8 +106,8 @@ export function WorkflowLeadTimeStepper({ event, className }: WorkflowLeadTimeSt
     <div className={cn('rounded-2xl border border-purple-100 bg-linear-to-r from-purple-50/70 via-slate-50/90 to-purple-50/70 p-4 shadow-2xs', className)}>
       <div className="flex items-center justify-between pb-3 border-b border-purple-100/80">
         <div className="flex items-center gap-2">
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#57068c] text-[11px] font-black text-white">
-            ★
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#57068c] text-white">
+            <Sparkles className="h-3 w-3 text-white" />
           </span>
           <h4 className="text-xs font-black uppercase tracking-wider text-purple-950">
             5-Stage Lead-Time Milestone Stepper

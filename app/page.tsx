@@ -16,7 +16,10 @@ import {
   createEvent,
   updateEvent,
   deleteEvent,
+  duplicateEvent,
   toggleTask,
+  updateAwarenessEvent,
+  deleteAwarenessEvent,
 } from '@/lib/data-service';
 import {
   EnrichedEvent,
@@ -147,7 +150,7 @@ export default function DashboardPage() {
     await createEvent(newEventData);
     await loadData();
     addToast(
-      '🎉 Event Created Successfully',
+      'Event Created Successfully',
       `"${newEventData.title}" is now added to the workflow pipeline.`,
       'success'
     );
@@ -161,10 +164,22 @@ export default function DashboardPage() {
     }
     const targetEvent = events.find((e) => e.id === id);
     addToast(
-      '⚡ Workflow Status Advanced',
+      'Workflow Status Advanced',
       `"${targetEvent?.title || 'Event'}" moved to ${newStatus}.`,
       'purple'
     );
+  };
+
+  const handleDuplicateEvent = async (id: string) => {
+    const duplicated = await duplicateEvent(id);
+    await loadData();
+    if (duplicated) {
+      addToast(
+        'Event Duplicated',
+        `Copied "${duplicated.title}" to ${duplicated.event_date}. Click to edit location or venue.`,
+        'success'
+      );
+    }
   };
 
   const handleToggleTask = async (taskId: string) => {
@@ -172,7 +187,7 @@ export default function DashboardPage() {
     const updated = await toggleTask(taskId);
     setTasks(updated);
     addToast(
-      targetTask?.completed ? 'Task Reopened' : '✓ Task Completed',
+      targetTask?.completed ? 'Task Reopened' : 'Task Completed',
       targetTask?.title,
       targetTask?.completed ? 'info' : 'success'
     );
@@ -373,7 +388,7 @@ export default function DashboardPage() {
                 onSelectEvent={handleOpenEventDetails}
               />
             </div>
-          ) : (
+          ) : calendarViewMode === 'table' ? (
             <div className="w-full space-y-4">
               <EventTableView
                 events={filteredDashboardEvents}
@@ -384,12 +399,30 @@ export default function DashboardPage() {
                   await loadData();
                   addToast('Event Updated', 'Changes saved successfully.', 'info');
                 }}
+                onUpdateAwarenessEvent={async (id, updates) => {
+                  await updateAwarenessEvent(id, updates);
+                  await loadData();
+                  addToast('Conference Updated', 'Changes saved successfully.', 'info');
+                }}
                 onDeleteEvent={async (id) => {
                   await deleteEvent(id);
                   await loadData();
                   addToast('Event Deleted', 'Event was removed from the schedule.', 'warning');
                 }}
+                onDeleteAwarenessEvent={async (id) => {
+                  await deleteAwarenessEvent(id);
+                  await loadData();
+                  addToast('Conference Removed', 'Item was removed from the schedule.', 'warning');
+                }}
                 onOpenAddModal={() => setIsAddEventOpen(true)}
+              />
+            </div>
+          ) : (
+            <div className="w-full space-y-4">
+              <QuarterlyListView
+                events={filteredDashboardEvents}
+                awarenessEvents={awarenessEvents}
+                onSelectEvent={handleOpenEventDetails}
               />
             </div>
           )
@@ -435,6 +468,7 @@ export default function DashboardPage() {
         open={isDetailsOpen}
         onOpenChange={setIsDetailsOpen}
         onUpdateStatus={handleUpdateStatus}
+        onDuplicate={handleDuplicateEvent}
       />
 
       {/* Toast Notification Container */}

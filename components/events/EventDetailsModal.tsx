@@ -15,6 +15,7 @@ import {
   ArrowRight,
   Send,
   PartyPopper,
+  Copy,
 } from 'lucide-react';
 import { EnrichedEvent, EventStatus } from '@/types/database.types';
 import { WorkflowLeadTimeStepper } from '@/components/events/WorkflowLeadTimeStepper';
@@ -29,12 +30,14 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface EventDetailsModalProps {
   event: EnrichedEvent | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onUpdateStatus: (id: string, newStatus: EventStatus) => Promise<void>;
+  onDuplicate?: (id: string) => Promise<void>;
 }
 
 export function EventDetailsModal({
@@ -42,6 +45,7 @@ export function EventDetailsModal({
   open,
   onOpenChange,
   onUpdateStatus,
+  onDuplicate,
 }: EventDetailsModalProps) {
   if (!event) return null;
 
@@ -155,6 +159,42 @@ export function EventDetailsModal({
           </div>
         </div>
 
+        {/* Annual Stipend Subsidy Details */}
+        {(event.budgeted_subsidy !== undefined || event.actual_subsidy !== undefined) && (
+          <div className="rounded-xl border border-purple-100 bg-purple-50/50 p-3 space-y-1.5">
+            <div className="flex items-center justify-between text-xs font-bold text-purple-950">
+              <span className="flex items-center gap-1.5">
+                <DollarSign className="h-3.5 w-3.5 text-[#57068c]" />
+                <span>Annual $5,000 Stipend Allocation</span>
+              </span>
+              <span className="text-[10px] font-bold bg-white px-2 py-0.5 rounded border border-purple-200 text-[#57068c]">
+                Fiscal Year Budget
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs pt-1">
+              <div>
+                <span className="text-[10px] text-slate-500 font-semibold block">Budgeted Subsidy:</span>
+                <span className="font-mono font-bold text-slate-900">
+                  ${(event.budgeted_subsidy || 0).toFixed(2)}
+                </span>
+              </div>
+              <div>
+                <span className="text-[10px] text-slate-500 font-semibold block">Actual Subsidy Used:</span>
+                <span className="font-mono font-bold text-emerald-800">
+                  {event.actual_subsidy !== null && event.actual_subsidy !== undefined
+                    ? `$${Number(event.actual_subsidy).toFixed(2)}`
+                    : 'Pending / In Progress'}
+                </span>
+              </div>
+            </div>
+            {event.budget_notes && (
+              <p className="text-[11px] text-slate-600 italic pt-1 border-t border-purple-100">
+                Note: {event.budget_notes}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Notes */}
         {event.notes && (
           <div className="rounded-lg border border-slate-200 bg-white p-3">
@@ -184,8 +224,22 @@ export function EventDetailsModal({
         </div>
       </DialogContent>
 
-      <DialogFooter>
-        <Button variant="outline" onClick={() => onOpenChange(false)}>
+      <DialogFooter className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
+        {onDuplicate && (
+          <Button
+            type="button"
+            variant="outline"
+            onClick={async () => {
+              await onDuplicate(event.id);
+              onOpenChange(false);
+            }}
+            className="text-xs font-bold text-purple-900 border-purple-200 hover:bg-purple-50 gap-1.5"
+          >
+            <Copy className="h-3.5 w-3.5 text-[#57068c]" />
+            <span>Duplicate / Copy Event</span>
+          </Button>
+        )}
+        <Button variant="outline" onClick={() => onOpenChange(false)} className="text-xs">
           Close
         </Button>
       </DialogFooter>

@@ -23,6 +23,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { format, parseISO, addWeeks } from 'date-fns';
+import { DEFAULT_CURRENT_DATE } from '@/lib/utils/deadlines';
 
 interface NavbarProps {
   onOpenAddEvent?: () => void;
@@ -43,6 +45,13 @@ export function Navbar({
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(urgentAlertsCount);
   const notifRef = useRef<HTMLDivElement>(null);
+
+  // Dynamic Planning Horizon Calculations (8 Weeks & 6 Weeks from Today)
+  const baseDate = parseISO(DEFAULT_CURRENT_DATE);
+  const sixWeeksDate = addWeeks(baseDate, 6);
+  const eightWeeksDate = addWeeks(baseDate, 8);
+  const sixWeeksFormatted = format(sixWeeksDate, 'EEEE, MMMM d, yyyy');
+  const eightWeeksFormatted = format(eightWeeksDate, 'EEEE, MMMM d, yyyy');
 
   // Close notifications on click outside
   useEffect(() => {
@@ -278,6 +287,46 @@ export function Navbar({
           <div className="flex items-center gap-2 pl-1">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-700 text-[11px] font-bold text-white ring-2 ring-purple-200">
               L&A
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Top Planning Lead-Time Horizon Banner (Visible on all tabs) */}
+      <div className="border-t border-purple-100 bg-linear-to-r from-purple-50/90 via-slate-50 to-purple-50/90 px-4 py-1.5 shadow-2xs">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-1.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#57068c] text-white shadow-2xs">
+              <Clock className="h-3 w-3" />
+            </span>
+            <span className="font-extrabold text-slate-800 tracking-tight text-[11px] sm:text-xs">
+              Planning Horizon from Today:
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 text-[11px]">
+            {/* 8 Weeks Milestone */}
+            <div className="flex items-center gap-1.5 rounded-lg bg-purple-100/90 border border-purple-200 px-2.5 py-1 text-purple-950 shadow-2xs">
+              <span className="flex h-2 w-2 rounded-full bg-[#57068c]" />
+              <span className="font-extrabold">8 Weeks from Today:</span>
+              <span className="font-black text-[#57068c] underline decoration-purple-300">
+                {eightWeeksFormatted}
+              </span>
+              <span className="hidden lg:inline text-purple-800 font-medium">
+                (Begin finding & setting up event)
+              </span>
+            </div>
+
+            {/* 6 Weeks Deadline */}
+            <div className="flex items-center gap-1.5 rounded-lg bg-amber-100/90 border border-amber-300 px-2.5 py-1 text-amber-950 shadow-2xs">
+              <span className="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse" />
+              <span className="font-extrabold">6 Weeks from Today:</span>
+              <span className="font-black text-amber-900 underline decoration-amber-400">
+                {sixWeeksFormatted}
+              </span>
+              <span className="hidden lg:inline text-amber-800 font-medium">
+                (Submit Event comms request for events up to this date)
+              </span>
             </div>
           </div>
         </div>

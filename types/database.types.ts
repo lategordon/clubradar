@@ -10,6 +10,26 @@ export type AwarenessCategory =
 
 export type IdeaStatus = 'Draft' | 'Contacting Vendor' | 'Under Consideration' | 'Ready to Plan' | 'Promoted';
 
+export type UniversityCode = 'NYU' | 'Stanford' | 'UC Berkeley' | 'Columbia' | 'Harvard' | 'MIT' | 'Other';
+
+export interface ClubLeader {
+  id: string;
+  name: string;
+  university: string;
+  university_short: UniversityCode;
+  university_color: string;
+  chapter: string;
+  role: string;
+  email: string;
+  avatar_initials: string;
+  badge: string;
+  bio?: string;
+  assigned_events_count?: number;
+  sla_compliance_rate?: string;
+  active_quarter_capacity?: string;
+  created_at?: string;
+}
+
 export interface EventIdea {
   id: string;
   title: string;
@@ -137,6 +157,12 @@ export interface Database {
         Row: ActivityLog;
         Insert: Partial<ActivityLog>;
         Update: Partial<ActivityLog>;
+        Relationships: [];
+      };
+      club_leaders: {
+        Row: ClubLeader;
+        Insert: Partial<ClubLeader>;
+        Update: Partial<ClubLeader>;
         Relationships: [];
       };
     };

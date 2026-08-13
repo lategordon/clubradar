@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured } from '@/lib/supabase/client';
-import { DatabaseEvent, AwarenessEvent, TaskItem, ActivityLog, EnrichedEvent, EventIdea } from '@/types/database.types';
-import { INITIAL_EVENTS, INITIAL_AWARENESS_EVENTS, INITIAL_TASKS, INITIAL_ACTIVITY_LOGS, INITIAL_EVENT_IDEAS } from '@/lib/mock-data';
+import { DatabaseEvent, AwarenessEvent, TaskItem, ActivityLog, EnrichedEvent, EventIdea, ClubLeader } from '@/types/database.types';
+import { INITIAL_EVENTS, INITIAL_AWARENESS_EVENTS, INITIAL_TASKS, INITIAL_ACTIVITY_LOGS, INITIAL_EVENT_IDEAS, INITIAL_CLUB_LEADERS } from '@/lib/mock-data';
 import { enrichEvent } from '@/lib/utils/deadlines';
 
 const EVENTS_STORAGE_KEY = 'nyu_alumni_events_store_v1';
@@ -8,6 +8,7 @@ const IDEAS_STORAGE_KEY = 'nyu_alumni_ideas_store_v2';
 const TASKS_STORAGE_KEY = 'nyu_alumni_tasks_store_v1';
 const LOGS_STORAGE_KEY = 'nyu_alumni_logs_store_v1';
 const AWARENESS_STORAGE_KEY = 'nyu_alumni_awareness_store_v1';
+const LEADERS_STORAGE_KEY = 'nyu_alumni_leaders_store_v1';
 
 // Local storage helper
 function getStored<T>(key: string, fallback: T): T {
@@ -434,20 +435,101 @@ export async function addActivityLog(
   }
 }
 
-// 17. Helper to get all enriched events and ideas
+// 17. Fetch Club Leaders
+export async function getClubLeaders(): Promise<ClubLeader[]> {
+  if (isSupabaseConfigured && supabase) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('club_leaders') as any)
+        .select('*')
+        .order('name', { ascending: true });
+      if (!error && data && data.length > 0) {
+        return data as ClubLeader[];
+      }
+    } catch (e) {
+      console.warn('Supabase leaders fetch failed, falling back:', e);
+    }
+  }
+
+  return getStored<ClubLeader[]>(LEADERS_STORAGE_KEY, INITIAL_CLUB_LEADERS);
+}
+
+// 18. Create Club Leader
+export async function createClubLeader(
+  newLeader: Omit<ClubLeader, 'id' | 'created_at'>
+): Promise<ClubLeader> {
+  const generatedId = `leader-${Date.now()}`;
+  const leaderRecord: ClubLeader = {
+    ...newLeader,
+    id: generatedId,
+    created_at: new Date().toISOString(),
+  };
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.from('club_leaders') as any)
+        .insert([leaderRecord])
+        .select()
+        .single();
+      if (!error && data) {
+        await addActivityLog('System', 'SYS', `added new club leader "${newLeader.name}"`, newLeader.university);
+        return data as ClubLeader;
+      }
+    } catch (e) {
+      console.error('Supabase leader insert failed:', e);
+    }
+  }
+
+  const current = getStored<ClubLeader[]>(LEADERS_STORAGE_KEY, INITIAL_CLUB_LEADERS);
+  const updated = [leaderRecord, ...current];
+  setStored(LEADERS_STORAGE_KEY, updated);
+  await addActivityLog('System', 'SYS', `added new club leader "${newLeader.name}"`, newLeader.university);
+  return leaderRecord;
+}
+
+// 19. Update Club Leader
+export async function updateClubLeader(
+  id: string,
+  updates: Partial<ClubLeader>
+): Promise<ClubLeader | null> {
+  const current = getStored<ClubLeader[]>(LEADERS_STORAGE_KEY, INITIAL_CLUB_LEADERS);
+  let updatedRecord: ClubLeader | null = null;
+  const updated = current.map((leader) => {
+    if (leader.id === id) {
+      updatedRecord = { ...leader, ...updates };
+      return updatedRecord;
+    }
+    return leader;
+  });
+
+  setStored(LEADERS_STORAGE_KEY, updated);
+  return updatedRecord;
+}
+
+// 20. Delete Club Leader
+export async function deleteClubLeader(id: string): Promise<void> {
+  const current = getStored<ClubLeader[]>(LEADERS_STORAGE_KEY, INITIAL_CLUB_LEADERS);
+  const updated = current.filter((leader) => leader.id !== id);
+  setStored(LEADERS_STORAGE_KEY, updated);
+}
+
+// 21. Helper to get all enriched events, ideas, and leaders
 export async function getEnrichedEvents(): Promise<{
   enrichedEvents: EnrichedEvent[];
   awarenessEvents: AwarenessEvent[];
   ideas: EventIdea[];
   tasks: TaskItem[];
   activityLogs: ActivityLog[];
+  leaders: ClubLeader[];
 }> {
-  const [events, awarenessEvents, ideas, tasks, activityLogs] = await Promise.all([
+  const [events, awarenessEvents, ideas, tasks, activityLogs, leaders] = await Promise.all([
     getEvents(),
     getAwarenessEvents(),
     getEventIdeas(),
     getTasks(),
     getActivityLogs(),
+    getClubLeaders(),
   ]);
 
   const enrichedEvents = events.map((event) => enrichEvent(event, awarenessEvents));
@@ -458,5 +540,7 @@ export async function getEnrichedEvents(): Promise<{
     ideas,
     tasks,
     activityLogs,
+    leaders,
   };
 }
+

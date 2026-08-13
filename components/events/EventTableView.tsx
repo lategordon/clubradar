@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { format, parseISO, differenceInCalendarDays, isValid } from 'date-fns';
 import {
   Search,
@@ -21,6 +21,7 @@ import {
   ChevronDown,
   SlidersHorizontal,
   Eye,
+  RotateCcw,
 } from 'lucide-react';
 import { EnrichedEvent, AwarenessEvent, EventStatus, EventRegion, DatabaseEvent } from '@/types/database.types';
 import { DEFAULT_CURRENT_DATE, calculateEventDeadlines } from '@/lib/utils/deadlines';
@@ -28,6 +29,154 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
+
+interface MultiSelectDropdownProps {
+  label: string;
+  placeholder: string;
+  options: { label: string; value: string; count?: number }[];
+  selected: string[];
+  onChange: (selected: string[]) => void;
+}
+
+function MultiSelectDropdown({
+  label,
+  placeholder,
+  options,
+  selected,
+  onChange,
+}: MultiSelectDropdownProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const handleToggleOption = (val: string) => {
+    if (selected.includes(val)) {
+      onChange(selected.filter((item) => item !== val));
+    } else {
+      onChange([...selected, val]);
+    }
+  };
+
+  const handleSelectAll = () => {
+    onChange(options.map((o) => o.value));
+  };
+
+  const handleClear = () => {
+    onChange([]);
+  };
+
+  // Determine button label text
+  const getButtonText = () => {
+    if (selected.length === 0) return placeholder;
+    if (selected.length === 1) {
+      const match = options.find((o) => o.value === selected[0]);
+      return match ? match.label : selected[0];
+    }
+    if (selected.length === options.length) return `All ${label}s`;
+    return `${selected.length} ${label}s`;
+  };
+
+  const isFiltered = selected.length > 0;
+
+  return (
+    <div className="relative inline-flex items-center gap-1.5" ref={dropdownRef}>
+      <span className="text-slate-500 font-medium text-xs">{label}:</span>
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className={cn(
+          'flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer select-none shadow-2xs',
+          isFiltered
+            ? 'border-purple-400 bg-purple-50 text-[#57068c] ring-2 ring-purple-200'
+            : 'border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100 hover:border-slate-300'
+        )}
+      >
+        <span className="truncate max-w-[130px]">{getButtonText()}</span>
+        {isFiltered && (
+          <span className="flex h-4 w-4 items-center justify-center rounded-full bg-[#57068c] text-[9px] font-black text-white">
+            {selected.length}
+          </span>
+        )}
+        <ChevronDown
+          className={cn(
+            'h-3.5 w-3.5 transition-transform text-slate-400',
+            isOpen && 'rotate-180 text-purple-700'
+          )}
+        />
+      </button>
+
+      {isOpen && (
+        <div className="absolute left-0 top-8 z-30 min-w-[200px] max-w-[280px] rounded-xl border border-slate-200 bg-white p-2 shadow-xl animate-in fade-in zoom-in-95">
+          <div className="flex items-center justify-between pb-1.5 mb-1.5 border-b border-slate-100 px-1">
+            <span className="text-[11px] font-bold text-slate-800 uppercase tracking-wide">
+              {label} Filter ({selected.length}/{options.length})
+            </span>
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={handleSelectAll}
+                className="text-[10px] font-semibold text-[#57068c] hover:underline cursor-pointer"
+              >
+                Select All
+              </button>
+              <span className="text-slate-300">•</span>
+              <button
+                type="button"
+                onClick={handleClear}
+                className="text-[10px] font-semibold text-slate-500 hover:text-slate-800 cursor-pointer"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <div className="max-h-48 overflow-y-auto space-y-0.5 scrollbar-thin">
+            {options.map((opt) => {
+              const isChecked = selected.includes(opt.value);
+              return (
+                <label
+                  key={opt.value}
+                  className={cn(
+                    'flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg text-xs font-medium cursor-pointer transition-colors select-none',
+                    isChecked ? 'bg-purple-50 text-[#57068c] font-bold' : 'hover:bg-slate-50 text-slate-700'
+                  )}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => handleToggleOption(opt.value)}
+                      className="rounded border-slate-300 text-purple-700 focus:ring-purple-600 h-3.5 w-3.5"
+                    />
+                    <span className="truncate">{opt.label}</span>
+                  </div>
+                  {opt.count !== undefined && (
+                    <span className="text-[10px] text-slate-400 font-normal px-1">
+                      {opt.count}
+                    </span>
+                  )}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export function getQuarterInfo(dateString: string) {
   try {
@@ -97,12 +246,12 @@ export function EventTableView({
   // Reference date (Simulation Date: August 11, 2026)
   const currentDate = parseISO(DEFAULT_CURRENT_DATE);
 
-  // Search & Filter state
+  // Search & Multi-Select Filter state
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedMonthFilter, setSelectedMonthFilter] = useState('All');
-  const [selectedStatusFilter, setSelectedStatusFilter] = useState('All');
-  const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('All');
-  const [selectedHostFilter, setSelectedHostFilter] = useState('All');
+  const [selectedMonths, setSelectedMonths] = useState<string[]>([]);
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedHosts, setSelectedHosts] = useState<string[]>([]);
   const [sortBy, setSortBy] = useState<'date' | 'title' | 'weeks' | 'cost' | 'status'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
@@ -254,24 +403,58 @@ export function EventTableView({
     return rows;
   }, [events, awarenessEvents, currentDate]);
 
-  // Extract unique filter options
-  const monthOptions = useMemo(() => {
-    const set = new Set<string>();
+  // Extract unique filter options with item counts
+  const monthFilterOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
     tableData.forEach((r) => {
-      if (r.monthFormatted) set.add(r.monthFormatted);
+      if (r.monthFormatted) counts[r.monthFormatted] = (counts[r.monthFormatted] || 0) + 1;
     });
-    return Array.from(set);
+    return Object.keys(counts).map((m) => ({
+      label: m,
+      value: m,
+      count: counts[m],
+    }));
   }, [tableData]);
 
-  const hostOptions = useMemo(() => {
-    const set = new Set<string>();
+  const statusFilterOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
     tableData.forEach((r) => {
-      if (r.primaryHost) set.add(r.primaryHost);
+      counts[r.status] = (counts[r.status] || 0) + 1;
     });
-    return Array.from(set);
+    const statuses = ['Submitted', 'Planning', 'Idea', 'Confirmed', 'Conference', 'Holiday'];
+    return statuses.map((s) => ({
+      label: s === 'Holiday' ? 'Holiday / Civic' : s,
+      value: s,
+      count: counts[s] || 0,
+    }));
   }, [tableData]);
 
-  // Filtered and sorted data
+  const categoryFilterOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
+    tableData.forEach((r) => {
+      counts[r.category] = (counts[r.category] || 0) + 1;
+    });
+    const categories = ['Alumni Event', 'Community / Conference', 'Civic / Holiday', 'Cultural'];
+    return categories.map((c) => ({
+      label: c,
+      value: c,
+      count: counts[c] || 0,
+    }));
+  }, [tableData]);
+
+  const hostFilterOptions = useMemo(() => {
+    const counts: Record<string, number> = {};
+    tableData.forEach((r) => {
+      if (r.primaryHost) counts[r.primaryHost] = (counts[r.primaryHost] || 0) + 1;
+    });
+    return Object.keys(counts).map((h) => ({
+      label: h,
+      value: h,
+      count: counts[h],
+    }));
+  }, [tableData]);
+
+  // Filtered and sorted data (Multi-Select Supported)
   const filteredData = useMemo(() => {
     const result = tableData.filter((row) => {
       // Search
@@ -279,18 +462,35 @@ export function EventTableView({
         const q = searchQuery.toLowerCase();
         const matchTitle = row.title.toLowerCase().includes(q);
         const matchLoc = row.location.toLowerCase().includes(q);
-        const matchHost = row.primaryHost.toLowerCase().includes(q) || row.coHosts.some((h) => h.toLowerCase().includes(q));
+        const matchHost =
+          row.primaryHost.toLowerCase().includes(q) ||
+          row.coHosts.some((h) => h.toLowerCase().includes(q));
         const matchCategory = row.category.toLowerCase().includes(q);
         if (!matchTitle && !matchLoc && !matchHost && !matchCategory) return false;
       }
-      // Month
-      if (selectedMonthFilter !== 'All' && row.monthFormatted !== selectedMonthFilter) return false;
-      // Status
-      if (selectedStatusFilter !== 'All' && row.status !== selectedStatusFilter) return false;
-      // Category
-      if (selectedCategoryFilter !== 'All' && row.category !== selectedCategoryFilter) return false;
-      // Host
-      if (selectedHostFilter !== 'All' && !row.primaryHost.includes(selectedHostFilter)) return false;
+
+      // Multi-Select Month
+      if (selectedMonths.length > 0 && !selectedMonths.includes(row.monthFormatted)) {
+        return false;
+      }
+
+      // Multi-Select Status
+      if (selectedStatuses.length > 0 && !selectedStatuses.includes(row.status)) {
+        return false;
+      }
+
+      // Multi-Select Category
+      if (selectedCategories.length > 0 && !selectedCategories.includes(row.category)) {
+        return false;
+      }
+
+      // Multi-Select Host
+      if (selectedHosts.length > 0) {
+        const hostMatches = selectedHosts.some(
+          (h) => row.primaryHost.includes(h) || row.coHosts.some((ch) => ch.includes(h))
+        );
+        if (!hostMatches) return false;
+      }
 
       return true;
     });
@@ -313,14 +513,30 @@ export function EventTableView({
     });
 
     return result;
-  }, [tableData, searchQuery, selectedMonthFilter, selectedStatusFilter, selectedCategoryFilter, selectedHostFilter, sortBy, sortOrder]);
+  }, [
+    tableData,
+    searchQuery,
+    selectedMonths,
+    selectedStatuses,
+    selectedCategories,
+    selectedHosts,
+    sortBy,
+    sortOrder,
+  ]);
+
+  const hasActiveFilters =
+    searchQuery.trim() !== '' ||
+    selectedMonths.length > 0 ||
+    selectedStatuses.length > 0 ||
+    selectedCategories.length > 0 ||
+    selectedHosts.length > 0;
 
   const handleResetFilters = () => {
     setSearchQuery('');
-    setSelectedMonthFilter('All');
-    setSelectedStatusFilter('All');
-    setSelectedCategoryFilter('All');
-    setSelectedHostFilter('All');
+    setSelectedMonths([]);
+    setSelectedStatuses([]);
+    setSelectedCategories([]);
+    setSelectedHosts([]);
   };
 
   // Start inline editing
@@ -611,75 +827,55 @@ export function EventTableView({
           </div>
         </div>
 
-        {/* Filters Row */}
-        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100 text-xs">
-          {/* Month Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-500 font-medium">Month:</span>
-            <select
-              value={selectedMonthFilter}
-              onChange={(e) => setSelectedMonthFilter(e.target.value)}
-              className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-600"
-            >
-              <option value="All">All Months</option>
-              {monthOptions.map((m) => (
-                <option key={m} value={m}>
-                  {m}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Filters Row (All Multi-Select) */}
+        <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-slate-100 text-xs">
+          {/* Month Multi-Select */}
+          <MultiSelectDropdown
+            label="Month"
+            placeholder="All Months"
+            options={monthFilterOptions}
+            selected={selectedMonths}
+            onChange={setSelectedMonths}
+          />
 
-          {/* Status Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-500 font-medium">Status:</span>
-            <select
-              value={selectedStatusFilter}
-              onChange={(e) => setSelectedStatusFilter(e.target.value)}
-              className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-600"
-            >
-              <option value="All">All Statuses</option>
-              <option value="Idea">Idea</option>
-              <option value="Planning">Planning</option>
-              <option value="Submitted">Submitted</option>
-              <option value="Confirmed">Confirmed</option>
-              <option value="Conference">Conference</option>
-              <option value="Holiday">Holiday / Civic</option>
-            </select>
-          </div>
+          {/* Status Multi-Select */}
+          <MultiSelectDropdown
+            label="Status"
+            placeholder="All Statuses"
+            options={statusFilterOptions}
+            selected={selectedStatuses}
+            onChange={setSelectedStatuses}
+          />
 
-          {/* Category Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-500 font-medium">Category:</span>
-            <select
-              value={selectedCategoryFilter}
-              onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-              className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-600"
-            >
-              <option value="All">All Categories</option>
-              <option value="Alumni Event">Alumni Event</option>
-              <option value="Community / Conference">Community / Conference</option>
-              <option value="Civic / Holiday">Civic / Holiday</option>
-              <option value="Cultural">Cultural</option>
-            </select>
-          </div>
+          {/* Category Multi-Select */}
+          <MultiSelectDropdown
+            label="Category"
+            placeholder="All Categories"
+            options={categoryFilterOptions}
+            selected={selectedCategories}
+            onChange={setSelectedCategories}
+          />
 
-          {/* Host Filter */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-500 font-medium">Host:</span>
-            <select
-              value={selectedHostFilter}
-              onChange={(e) => setSelectedHostFilter(e.target.value)}
-              className="rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-medium text-slate-800 focus:outline-none focus:ring-1 focus:ring-purple-600"
+          {/* Host Multi-Select */}
+          <MultiSelectDropdown
+            label="Host"
+            placeholder="All Hosts"
+            options={hostFilterOptions}
+            selected={selectedHosts}
+            onChange={setSelectedHosts}
+          />
+
+          {/* Reset Filters Pill when active */}
+          {hasActiveFilters && (
+            <button
+              type="button"
+              onClick={handleResetFilters}
+              className="flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-100 hover:bg-purple-200 px-2 py-1 rounded-md transition-colors cursor-pointer"
             >
-              <option value="All">All Hosts</option>
-              {hostOptions.map((h) => (
-                <option key={h} value={h}>
-                  {h}
-                </option>
-              ))}
-            </select>
-          </div>
+              <RotateCcw className="h-3 w-3" />
+              <span>Reset Filters</span>
+            </button>
+          )}
 
           {/* Result Count */}
           <div className="ml-auto text-xs text-slate-500 font-medium">

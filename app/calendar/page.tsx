@@ -34,7 +34,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-type CalendarViewMode = 'grid' | 'table' | 'quarterly';
+type CalendarViewMode = 'grid' | 'table';
 type FilterChipId = 'all' | 'urgent' | 'my-events' | 'sf' | 'east-bay' | 'south-bay' | 'q4-2026' | 'q1-2027';
 
 interface FilterChipItem {
@@ -209,26 +209,12 @@ export default function CalendarPage() {
               <span>Events & Calendar Timeline</span>
             </h1>
             <p className="text-xs font-medium text-slate-500 mt-1">
-              Interactive Month Conflict Radar, 8-Column Timeline Table, and Quarterly Horizon
+              Interactive Month Conflict Radar and 8-Column Timeline Table with Quarterly Dividers
             </p>
           </div>
 
           {/* View Mode Toggle Button Group */}
           <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setViewMode('grid')}
-              className={cn(
-                'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer select-none',
-                viewMode === 'grid'
-                  ? 'bg-[#57068c] text-white shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-              )}
-            >
-              <CalendarIcon className="h-3.5 w-3.5" />
-              <span>Month Radar</span>
-            </button>
-
             <button
               type="button"
               onClick={() => setViewMode('table')}
@@ -245,16 +231,16 @@ export default function CalendarPage() {
 
             <button
               type="button"
-              onClick={() => setViewMode('quarterly')}
+              onClick={() => setViewMode('grid')}
               className={cn(
                 'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer select-none',
-                viewMode === 'quarterly'
+                viewMode === 'grid'
                   ? 'bg-[#57068c] text-white shadow-xs'
                   : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               )}
             >
-              <Layers className="h-3.5 w-3.5" />
-              <span>Quarterly Horizon</span>
+              <CalendarIcon className="h-3.5 w-3.5" />
+              <span>Month Radar</span>
             </button>
           </div>
         </div>
@@ -324,7 +310,7 @@ export default function CalendarPage() {
               }}
             />
           </div>
-        ) : viewMode === 'table' ? (
+        ) : (
           <div className="w-full space-y-4">
             <EventTableView
               events={filteredEvents}
@@ -336,17 +322,6 @@ export default function CalendarPage() {
               onUpdateEvent={handleUpdateEvent}
               onDeleteEvent={handleDeleteEvent}
               onOpenAddModal={() => setIsAddEventOpen(true)}
-            />
-          </div>
-        ) : (
-          <div className="w-full space-y-4">
-            <QuarterlyListView
-              events={filteredEvents}
-              awarenessEvents={awarenessEvents}
-              onSelectEvent={(e) => {
-                setSelectedEvent(e);
-                setIsDetailsOpen(true);
-              }}
             />
           </div>
         )}

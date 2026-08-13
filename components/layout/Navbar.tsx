@@ -63,7 +63,6 @@ export function Navbar({
     { label: 'Dashboard', href: '/', id: 'dashboard', icon: LayoutDashboard },
     { label: 'Calendar', href: '/calendar', id: 'calendar', icon: Calendar },
     { label: 'Ideas', href: '/ideas', id: 'ideas', icon: Lightbulb, badge: '6' },
-    { label: 'Events', href: '/events', id: 'events', icon: Layers },
     { label: 'Hosts', href: '/hosts', id: 'hosts', icon: Users },
     { label: 'Reports', href: '/reports', id: 'reports', icon: FileBarChart },
   ];
@@ -75,7 +74,7 @@ export function Navbar({
       description: 'Dolores Park Picnic (Oct 8) requires marketing copy submitted for NYU newsletter inclusion.',
       type: 'warning',
       time: 'Action Required • 2 days left',
-      href: '/events',
+      href: '/calendar',
     },
     {
       id: 'notif-2',

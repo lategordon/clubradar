@@ -245,20 +245,6 @@ export default function DashboardPage() {
             <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white p-1 shadow-2xs">
               <button
                 type="button"
-                onClick={() => setCalendarViewMode('grid')}
-                className={cn(
-                  'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer select-none',
-                  calendarViewMode === 'grid'
-                    ? 'bg-[#57068c] text-white shadow-xs'
-                    : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
-                )}
-              >
-                <CalendarIcon className="h-3.5 w-3.5" />
-                <span>Month Radar</span>
-              </button>
-
-              <button
-                type="button"
                 onClick={() => setCalendarViewMode('table')}
                 className={cn(
                   'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer select-none',
@@ -273,16 +259,16 @@ export default function DashboardPage() {
 
               <button
                 type="button"
-                onClick={() => setCalendarViewMode('quarterly')}
+                onClick={() => setCalendarViewMode('grid')}
                 className={cn(
                   'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all cursor-pointer select-none',
-                  calendarViewMode === 'quarterly'
+                  calendarViewMode === 'grid'
                     ? 'bg-[#57068c] text-white shadow-xs'
                     : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
                 )}
               >
-                <Layers className="h-3.5 w-3.5" />
-                <span>Quarterly Horizon</span>
+                <CalendarIcon className="h-3.5 w-3.5" />
+                <span>Month Radar</span>
               </button>
             </div>
           )}
@@ -387,7 +373,7 @@ export default function DashboardPage() {
                 onSelectEvent={handleOpenEventDetails}
               />
             </div>
-          ) : calendarViewMode === 'table' ? (
+          ) : (
             <div className="w-full space-y-4">
               <EventTableView
                 events={filteredDashboardEvents}
@@ -404,14 +390,6 @@ export default function DashboardPage() {
                   addToast('Event Deleted', 'Event was removed from the schedule.', 'warning');
                 }}
                 onOpenAddModal={() => setIsAddEventOpen(true)}
-              />
-            </div>
-          ) : (
-            <div className="w-full space-y-4">
-              <QuarterlyListView
-                events={filteredDashboardEvents}
-                awarenessEvents={awarenessEvents}
-                onSelectEvent={handleOpenEventDetails}
               />
             </div>
           )

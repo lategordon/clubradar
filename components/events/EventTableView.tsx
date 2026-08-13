@@ -690,7 +690,7 @@ export function EventTableView({
 
       {/* Main Table Container */}
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden shadow-xs">
-        <div className="overflow-x-auto max-h-[680px]">
+        <div className="overflow-x-auto max-h-[880px] min-h-[500px]">
           <table className="w-full text-left text-xs border-collapse">
             {/* Table Header */}
             <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-md shadow-2xs border-b border-slate-200">

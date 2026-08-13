@@ -22,7 +22,10 @@ import {
   Calendar as CalendarIcon,
   RotateCcw,
   Sparkles,
-  Info,
+  MapPin,
+  Clock,
+  Building2,
+  Users,
 } from 'lucide-react';
 import { EnrichedEvent, AwarenessEvent } from '@/types/database.types';
 import { DEFAULT_CURRENT_DATE } from '@/lib/utils/deadlines';
@@ -93,69 +96,83 @@ export function ConflictRadarCalendar({
 
   const monthLabel = format(currentMonthDate, 'MMMM yyyy');
 
+  // Count events in this month
+  const monthEventCount = useMemo(() => {
+    const startStr = format(startOfMonth(currentMonthDate), 'yyyy-MM-dd');
+    const endStr = format(endOfMonth(currentMonthDate), 'yyyy-MM-dd');
+    return events.filter((e) => e.event_date >= startStr && e.event_date <= endStr).length;
+  }, [events, currentMonthDate]);
+
   return (
-    <div className="flex flex-col h-full rounded-2xl border border-slate-200 bg-white p-4 shadow-xs">
+    <div className="flex flex-col h-full rounded-2xl border border-slate-200 bg-white p-5 shadow-xs space-y-4">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-4 border-b border-slate-100">
         <div>
-          <h2 className="text-lg font-bold tracking-tight text-slate-900 flex items-center gap-2">
-            Context & Conflicts
+          <h2 className="text-xl font-black tracking-tight text-slate-900 flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-purple-100 text-[#57068c]">
+              <CalendarIcon className="h-5 w-5" />
+            </span>
+            <span>Month Conflict Radar</span>
+            <span className="text-sm font-bold text-[#57068c] bg-purple-50 px-2.5 py-0.5 rounded-full border border-purple-200">
+              {monthLabel}
+            </span>
           </h2>
-          <p className="text-xs text-slate-500 font-medium">
-            Multi-day Awareness & Event Radar ({monthLabel})
+          <p className="text-xs text-slate-500 font-medium mt-1">
+            Overlays multi-day awareness dates, tech conferences, and alumni event workflow lead times.
           </p>
         </div>
 
         {/* Calendar Nav Controls */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={handleResetToOctober}
-            className="flex items-center gap-1 rounded-lg border border-purple-200 bg-purple-50 px-2 py-1 text-xs font-semibold text-[#57068c] hover:bg-purple-100 transition-colors cursor-pointer shadow-2xs"
+            className="flex items-center gap-1.5 rounded-xl border border-purple-200 bg-purple-50 px-3 py-1.5 text-xs font-bold text-[#57068c] hover:bg-purple-100 transition-all cursor-pointer shadow-2xs"
             title="Reset to Q4 2026 Launch (Oct 2026)"
           >
-            <RotateCcw className="h-3 w-3" />
-            <span className="hidden sm:inline">Oct 2026</span>
+            <RotateCcw className="h-3.5 w-3.5" />
+            <span>Reset (Oct 2026)</span>
           </button>
 
-          <div className="flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-bold text-slate-800 shadow-2xs">
-            {monthLabel}
+          <div className="flex items-center rounded-xl border border-slate-200 bg-slate-50 p-1 shadow-2xs">
+            <button
+              type="button"
+              onClick={handlePrevMonth}
+              className="rounded-lg p-1.5 text-slate-700 hover:bg-white hover:text-slate-900 transition-colors cursor-pointer"
+              aria-label="Previous Month"
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </button>
+            <span className="px-3 text-xs font-black text-slate-900 min-w-[110px] text-center select-none">
+              {monthLabel}
+            </span>
+            <button
+              type="button"
+              onClick={handleNextMonth}
+              className="rounded-lg p-1.5 text-slate-700 hover:bg-white hover:text-slate-900 transition-colors cursor-pointer"
+              aria-label="Next Month"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={handlePrevMonth}
-            className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
-            aria-label="Previous Month"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            onClick={handleNextMonth}
-            className="rounded-md border border-slate-200 p-1.5 text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors cursor-pointer"
-            aria-label="Next Month"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </button>
         </div>
       </div>
 
-      {/* Weekday Column Headers */}
-      <div className="grid grid-cols-7 gap-1 pt-3 pb-2 text-center text-xs font-bold text-slate-600 border-b border-slate-100">
-        <div>Sun</div>
+      {/* Weekday Column Headers (Bigger & Clearer) */}
+      <div className="grid grid-cols-7 gap-2 text-center text-xs font-black text-slate-700 uppercase tracking-wider py-2 bg-slate-50/80 rounded-xl border border-slate-200">
+        <div className="text-rose-600">Sun</div>
         <div>Mon</div>
         <div>Tue</div>
         <div>Wed</div>
         <div>Thu</div>
         <div>Fri</div>
-        <div>Sat</div>
+        <div className="text-purple-700">Sat</div>
       </div>
 
-      {/* Calendar Matrix View */}
-      <div className="flex-1 min-h-[460px] space-y-1.5 pt-2">
+      {/* Calendar Matrix View (Bigger Cells: min-h-[135px]) */}
+      <div className="flex-1 space-y-2">
         {weeks.map((week, weekIdx) => (
-          <div key={`week-${weekIdx}`} className="grid grid-cols-7 gap-1.5 min-h-[85px]">
+          <div key={`week-${weekIdx}`} className="grid grid-cols-7 gap-2">
             {week.map((day) => {
               const dateStr = format(day, 'yyyy-MM-dd');
               const isCurrMonth = isSameMonth(day, currentMonthDate);
@@ -183,43 +200,53 @@ export function ConflictRadarCalendar({
                 <div
                   key={dateStr}
                   className={cn(
-                    'relative rounded-lg border p-1 flex flex-col justify-between transition-all text-xs',
+                    'relative rounded-xl border p-2 flex flex-col justify-between transition-all min-h-[135px] sm:min-h-[145px]',
                     isCurrMonth
-                      ? 'border-slate-200 bg-white hover:border-purple-300'
-                      : 'border-slate-100 bg-slate-50/50 text-slate-400 opacity-60',
-                    isTodayDate && 'ring-2 ring-purple-500 bg-purple-50/30 font-bold',
-                    hasConflict && 'border-red-300 bg-red-50/40'
+                      ? 'border-slate-200 bg-white hover:border-purple-300 hover:shadow-xs'
+                      : 'border-slate-100 bg-slate-50/40 text-slate-400 opacity-50',
+                    isTodayDate && 'ring-2 ring-[#57068c] bg-purple-50/30',
+                    hasConflict && 'border-rose-400 bg-rose-50/50 ring-1 ring-rose-300'
                   )}
                 >
                   {/* Top Day Header */}
                   <div className="flex items-center justify-between">
-                    <span
-                      className={cn(
-                        'text-[11px] font-bold',
-                        isCurrMonth ? 'text-slate-800' : 'text-slate-400',
-                        isTodayDate && 'text-[#57068c] font-black'
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className={cn(
+                          'h-6 w-6 rounded-full flex items-center justify-center text-xs font-bold',
+                          isTodayDate
+                            ? 'bg-[#57068c] text-white font-black shadow-xs'
+                            : isCurrMonth
+                            ? 'text-slate-800'
+                            : 'text-slate-400'
+                        )}
+                      >
+                        {format(day, 'd')}
+                      </span>
+                      {isTodayDate && (
+                        <span className="text-[10px] font-bold text-purple-700 bg-purple-100 px-1.5 py-0.2 rounded-full">
+                          Today
+                        </span>
                       )}
-                    >
-                      {format(day, 'd')}
-                      {isTodayDate && <span className="ml-1 text-[9px] font-bold text-purple-700">(Today)</span>}
-                    </span>
+                    </div>
 
-                    {/* Conflict Badge */}
+                    {/* Conflict Alert Badge */}
                     {hasConflict && (
-                      <span className="rounded bg-red-600 px-1 text-[8px] font-black text-white tracking-wider animate-pulse shadow-2xs">
-                        CONFLICT!
+                      <span className="flex items-center gap-0.5 rounded-full bg-rose-600 px-1.5 py-0.5 text-[9px] font-black text-white tracking-wider animate-pulse shadow-xs">
+                        <AlertTriangle className="h-2.5 w-2.5" />
+                        <span>CONFLICT</span>
                       </span>
                     )}
                   </div>
 
-                  {/* Day Content Area */}
-                  <div className="mt-1 flex-1 space-y-1 overflow-hidden">
+                  {/* Day Content Area (Awareness + Events) */}
+                  <div className="mt-1.5 flex-1 space-y-1.5 overflow-hidden">
                     {/* Awareness Events on this Day */}
                     {dayAwareness.map((awr) => {
                       const isMulti = awr.start_date !== awr.end_date;
                       const isStart = dateStr === awr.start_date;
 
-                      let badgeBg = 'bg-emerald-600 text-white';
+                      let badgeBg = 'bg-indigo-600 text-white';
                       if (awr.color_tag === 'blue' || awr.category.includes('Civic') || awr.category.includes('Holiday')) {
                         badgeBg = 'bg-blue-600 text-white';
                       } else if (awr.color_tag === 'rose' || awr.category.includes('Cultural')) {
@@ -234,11 +261,11 @@ export function ConflictRadarCalendar({
                           onClick={() => onSelectAwareness && onSelectAwareness(awr)}
                           title={`${awr.title} (${awr.start_date} to ${awr.end_date || awr.start_date}) - ${awr.notes || ''}`}
                           className={cn(
-                            'truncate rounded px-1 py-0.5 text-[9px] font-semibold transition-opacity hover:opacity-90 cursor-default shadow-2xs',
+                            'truncate rounded-lg px-2 py-1 text-[10px] sm:text-xs font-bold transition-opacity hover:opacity-90 cursor-default shadow-2xs flex items-center gap-1',
                             badgeBg
                           )}
                         >
-                          {isMulti ? (isStart ? `🚩 ${awr.title}` : awr.title) : awr.title}
+                          <span>{isMulti ? (isStart ? `🚩 ${awr.title}` : `• ${awr.title}`) : `🗓️ ${awr.title}`}</span>
                         </div>
                       );
                     })}
@@ -249,11 +276,18 @@ export function ConflictRadarCalendar({
                       const isSubmitted = evt.status === 'Submitted' || evt.status === 'Confirmed';
                       const isIdea = evt.status === 'Idea';
 
-                      let eventStyle = 'bg-[#57068c] text-white border-[#4a0577]';
-                      if (isPlanning) {
-                        eventStyle = 'bg-amber-400 text-slate-950 border-amber-500 font-bold';
+                      let eventBg = 'bg-[#57068c] text-white border-[#460570]';
+                      let statusBadgeBg = 'bg-purple-900/60 text-purple-100';
+
+                      if (evt.status === 'Confirmed') {
+                        eventBg = 'bg-emerald-700 text-white border-emerald-800';
+                        statusBadgeBg = 'bg-emerald-900/60 text-emerald-100';
+                      } else if (isPlanning) {
+                        eventBg = 'bg-amber-400 text-slate-950 border-amber-500';
+                        statusBadgeBg = 'bg-amber-500/80 text-slate-950 font-black';
                       } else if (isIdea) {
-                        eventStyle = 'bg-slate-200 text-slate-800 border-slate-300';
+                        eventBg = 'bg-slate-200 text-slate-800 border-slate-300';
+                        statusBadgeBg = 'bg-slate-300 text-slate-800';
                       }
 
                       return (
@@ -262,21 +296,24 @@ export function ConflictRadarCalendar({
                           onClick={() => onSelectEvent(evt)}
                           title={`Click to view: ${evt.title} (${evt.status}) - Host: ${evt.primary_host}`}
                           className={cn(
-                            'group cursor-pointer rounded p-1 text-[9px] leading-tight border transition-transform hover:scale-[1.03] shadow-xs flex flex-col justify-between',
-                            eventStyle
+                            'group cursor-pointer rounded-xl p-1.5 text-[11px] leading-tight border transition-all hover:scale-[1.02] hover:shadow-md shadow-xs flex flex-col justify-between space-y-1',
+                            eventBg
                           )}
                         >
                           <div className="flex items-center justify-between gap-1">
-                            <span className="truncate font-extrabold">{evt.title}</span>
-                            <span className="shrink-0 h-3.5 w-3.5 rounded-full bg-slate-900 text-[8px] font-bold text-white flex items-center justify-center">
+                            <span className="font-black truncate text-xs">{evt.title}</span>
+                            <span className="shrink-0 h-4 w-4 rounded-full bg-slate-900 text-[9px] font-bold text-white flex items-center justify-center shadow-2xs">
                               {getAvatarBadge(evt)}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between text-[8px] opacity-90 mt-0.5">
-                            <span className="uppercase font-semibold tracking-wider">{evt.status}</span>
+
+                          <div className="flex items-center justify-between text-[9px] pt-0.5">
+                            <span className={cn("px-1.5 py-0.2 rounded font-bold uppercase tracking-wider", statusBadgeBg)}>
+                              {evt.status}
+                            </span>
                             {evt.deadlines.urgencyLabel && (
-                              <span className="text-[7px] font-black bg-red-600 text-white px-0.5 rounded">
-                                !
+                              <span className="font-bold bg-rose-600 text-white px-1 py-0.2 rounded shadow-2xs">
+                                {evt.deadlines.urgencyLabel}
                               </span>
                             )}
                           </div>
@@ -291,28 +328,28 @@ export function ConflictRadarCalendar({
         ))}
       </div>
 
-      {/* Legend Footer */}
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] text-slate-600 border-t border-slate-100">
-        <div className="flex flex-wrap items-center gap-3">
+      {/* Spacious Legend Footer */}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-3 pt-3 text-xs font-medium text-slate-600 border-t border-slate-100 bg-slate-50/50 p-3 rounded-xl">
+        <div className="flex flex-wrap items-center gap-4">
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-emerald-600" />
-            <span>Tech Week / Conference</span>
+            <span className="h-3 w-3 rounded-md bg-indigo-600 shadow-2xs" />
+            <span className="font-semibold text-slate-700">Tech Week / Conference</span>
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-amber-400" />
-            <span>Alumni Event (Planning)</span>
+            <span className="h-3 w-3 rounded-md bg-amber-400 shadow-2xs" />
+            <span className="font-semibold text-slate-700">Alumni Event (Planning)</span>
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-[#57068c]" />
-            <span>Submitted / Confirmed</span>
+            <span className="h-3 w-3 rounded-md bg-[#57068c] shadow-2xs" />
+            <span className="font-semibold text-slate-700">Submitted / Confirmed</span>
           </span>
           <span className="flex items-center gap-1.5">
-            <span className="h-2.5 w-2.5 rounded-sm bg-blue-600" />
-            <span>Civic / Holiday</span>
+            <span className="h-3 w-3 rounded-md bg-blue-600 shadow-2xs" />
+            <span className="font-semibold text-slate-700">Civic / Holiday</span>
           </span>
         </div>
-        <span className="text-[10px] text-slate-500 font-medium">
-          Click any event card to view 8w & 6w milestones
+        <span className="text-[11px] text-slate-500 font-semibold">
+          💡 Click any event card to view 8-week & 6-week milestones
         </span>
       </div>
     </div>

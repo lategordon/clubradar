@@ -74,7 +74,7 @@ export function Navbar({
     { label: 'Calendar', href: '/calendar', id: 'calendar', icon: Calendar },
     { label: 'Budget', href: '/budget', id: 'budget', icon: Wallet },
     { label: 'Ideas', href: '/ideas', id: 'ideas', icon: Lightbulb, badge: '6' },
-    { label: 'Volunteers', href: '/hosts', id: 'hosts', icon: Users },
+    { label: 'Volunteers', href: '/volunteers', id: 'volunteers', icon: Users },
     { label: 'Reports', href: '/reports', id: 'reports', icon: FileBarChart },
   ];
 
@@ -137,21 +137,13 @@ export function Navbar({
           <nav className="hidden md:flex items-center space-x-1 ml-6">
             {navItems.map((item) => {
               const isActive = activeTab
-                ? activeTab === item.id
-                : pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
-
-              const handleClick = (e: React.MouseEvent) => {
-                if (onSelectTab) {
-                  e.preventDefault();
-                  onSelectTab(item.id);
-                }
-              };
+                ? activeTab === item.id || (item.id === 'volunteers' && activeTab === 'hosts') || (item.id === 'hosts' && activeTab === 'volunteers')
+                : pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href)) || (item.href === '/volunteers' && pathname.startsWith('/hosts')) || (item.href === '/hosts' && pathname.startsWith('/volunteers'));
 
               return (
                 <Link
                   key={item.label}
                   href={item.href}
-                  onClick={handleClick}
                   className={cn(
                     'relative px-3 py-1.5 text-sm font-medium transition-colors rounded-md select-none',
                     isActive

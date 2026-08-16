@@ -410,7 +410,7 @@ export function EventTableView({
         cost: 0,
         status: awr.category === 'Community / Conference' ? 'Conference' : 'Holiday',
         category: awr.category,
-        primaryHost: 'Awareness / City',
+        primaryHost: '',
         coHosts: [],
         notes: awr.notes,
         rawAwareness: awr,
@@ -645,15 +645,37 @@ export function EventTableView({
     if (row.isAwareness) {
       if (row.status === 'Conference' || row.category === 'Community / Conference') {
         return {
-          bg: 'bg-indigo-50/40 hover:bg-indigo-100/60 border-l-[5px] border-l-indigo-500 text-slate-900',
-          dot: 'bg-indigo-500',
+          bg: 'bg-indigo-50/50 hover:bg-indigo-100/70 border-l-[5px] border-l-indigo-600 text-slate-900',
+          dot: 'bg-indigo-600',
           badgeVariant: 'community' as const,
+          statusCellBg: 'bg-indigo-600 text-white font-black text-center shadow-xs',
+          statusText: 'Conference',
+        };
+      }
+      if (row.category?.includes('Cultural') || row.rawAwareness?.color_tag === 'rose') {
+        return {
+          bg: 'bg-rose-50/50 hover:bg-rose-100/70 border-l-[5px] border-l-rose-600 text-slate-900',
+          dot: 'bg-rose-600',
+          badgeVariant: 'secondary' as const,
+          statusCellBg: 'bg-rose-600 text-white font-black text-center shadow-xs',
+          statusText: 'Cultural',
+        };
+      }
+      if (row.rawAwareness?.color_tag === 'amber' || row.category?.includes('Campus')) {
+        return {
+          bg: 'bg-amber-50/50 hover:bg-amber-100/70 border-l-[5px] border-l-amber-600 text-slate-900',
+          dot: 'bg-amber-600',
+          badgeVariant: 'secondary' as const,
+          statusCellBg: 'bg-amber-600 text-white font-black text-center shadow-xs',
+          statusText: 'Campus',
         };
       }
       return {
-        bg: 'bg-stone-50/70 hover:bg-stone-100/80 border-l-[5px] border-l-stone-400 text-slate-800',
-        dot: 'bg-stone-500',
+        bg: 'bg-blue-50/50 hover:bg-blue-100/70 border-l-[5px] border-l-blue-600 text-slate-900',
+        dot: 'bg-blue-600',
         badgeVariant: 'secondary' as const,
+        statusCellBg: 'bg-blue-600 text-white font-black text-center shadow-xs',
+        statusText: 'Holiday',
       };
     }
 
@@ -1165,9 +1187,18 @@ export function EventTableView({
 
                         {/* Status Dropdown */}
                         {visibleColumns.status && (
-                          <td className="py-2.5 px-3.5">
+                          <td
+                            className={cn(
+                              "py-2.5 px-3.5",
+                              editFormData.isAwareness
+                                ? editFormData.category === 'Community / Conference'
+                                  ? "bg-indigo-600 text-white font-black text-center"
+                                  : "bg-blue-600 text-white font-black text-center"
+                                : ""
+                            )}
+                          >
                             {editFormData.isAwareness ? (
-                              <span className="text-xs font-bold text-indigo-700 bg-indigo-50 px-2 py-1 rounded border border-indigo-200">
+                              <span className="text-xs font-black uppercase tracking-wider text-white">
                                 {editFormData.category === 'Community / Conference' ? 'Conference' : 'Holiday'}
                               </span>
                             ) : (
@@ -1189,9 +1220,7 @@ export function EventTableView({
                         {/* Hosts Input */}
                         {visibleColumns.host && (
                           <td className="py-2.5 px-3.5">
-                            {editFormData.isAwareness ? (
-                              <span className="text-slate-400 text-xs italic">City / Community</span>
-                            ) : (
+                            {editFormData.isAwareness ? null : (
                               <Input
                                 placeholder="Primary Host"
                                 value={editFormData.primaryHost}
@@ -1343,28 +1372,41 @@ export function EventTableView({
 
                         {/* Status */}
                         {visibleColumns.status && (
-                          <td className="py-3 px-3.5 whitespace-nowrap">
-                            <Badge
-                              variant={styling.badgeVariant}
-                              className="text-[10px] shadow-2xs font-bold"
-                            >
-                              {row.status}
-                            </Badge>
+                          <td
+                            className={cn(
+                              "py-3 px-3.5 whitespace-nowrap transition-colors",
+                              row.isAwareness && styling.statusCellBg
+                            )}
+                          >
+                            {row.isAwareness ? (
+                              <span className="inline-flex items-center justify-center font-black uppercase text-[11px] tracking-wider text-white select-none">
+                                {styling.statusText || row.status}
+                              </span>
+                            ) : (
+                              <Badge
+                                variant={styling.badgeVariant}
+                                className="text-[10px] shadow-2xs font-bold"
+                              >
+                                {row.status}
+                              </Badge>
+                            )}
                           </td>
                         )}
 
                         {/* Host(s) */}
                         {visibleColumns.host && (
                           <td className="py-3 px-3.5 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
-                              <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[9px] font-bold text-white shadow-2xs">
-                                {getAvatarBadge(row.primaryHost, row.coHosts)}
-                              </span>
-                              <span className="text-slate-700 font-semibold">{row.primaryHost}</span>
-                              {row.coHosts.length > 0 && (
-                                <span className="text-slate-400 text-[10px]">+ {row.coHosts.length}</span>
-                              )}
-                            </div>
+                            {row.isAwareness ? null : (
+                              <div className="flex items-center gap-1.5">
+                                <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-[9px] font-bold text-white shadow-2xs">
+                                  {getAvatarBadge(row.primaryHost, row.coHosts)}
+                                </span>
+                                <span className="text-slate-700 font-semibold">{row.primaryHost}</span>
+                                {row.coHosts.length > 0 && (
+                                  <span className="text-slate-400 text-[10px]">+ {row.coHosts.length}</span>
+                                )}
+                              </div>
+                            )}
                           </td>
                         )}
 

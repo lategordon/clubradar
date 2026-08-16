@@ -14,6 +14,7 @@ import { ToastContainer, ToastMessage } from '@/components/ui/toast';
 import {
   getEnrichedEvents,
   createEvent,
+  createAwarenessEvent,
   updateEvent,
   deleteEvent,
   duplicateEvent,
@@ -152,6 +153,18 @@ export default function DashboardPage() {
     addToast(
       'Event Created Successfully',
       `"${newEventData.title}" is now added to the workflow pipeline.`,
+      'success'
+    );
+  };
+
+  const handleCreateAwarenessEvent = async (
+    newAwarenessData: Omit<AwarenessEvent, 'id' | 'created_at'>
+  ) => {
+    await createAwarenessEvent(newAwarenessData);
+    await loadData();
+    addToast(
+      'Awareness Event Created',
+      `"${newAwarenessData.title}" is now added to the radar calendar.`,
       'success'
     );
   };
@@ -459,6 +472,7 @@ export default function DashboardPage() {
         open={isAddEventOpen}
         onOpenChange={setIsAddEventOpen}
         onSave={handleCreateEvent}
+        onSaveAwareness={handleCreateAwarenessEvent}
         awarenessEvents={awarenessEvents}
       />
 

@@ -11,6 +11,7 @@ import { ToastContainer, ToastMessage } from '@/components/ui/toast';
 import {
   getEnrichedEvents,
   createEvent,
+  createAwarenessEvent,
   updateEvent,
   deleteEvent,
   duplicateEvent,
@@ -167,6 +168,12 @@ export default function CalendarPage() {
         'success'
       );
     }
+  };
+
+  const handleCreateAwarenessEvent = async (newAwarenessData: Omit<AwarenessEvent, 'id' | 'created_at'>) => {
+    await createAwarenessEvent(newAwarenessData);
+    await loadData();
+    addToast('Awareness Created', `"${newAwarenessData.title}" added to calendar.`, 'success');
   };
 
   const handleUpdateAwarenessEvent = async (id: string, updates: Partial<AwarenessEvent>) => {
@@ -391,6 +398,7 @@ export default function CalendarPage() {
         open={isAddEventOpen}
         onOpenChange={setIsAddEventOpen}
         onSave={handleCreateEvent}
+        onSaveAwareness={handleCreateAwarenessEvent}
         awarenessEvents={awarenessEvents}
       />
 

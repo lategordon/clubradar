@@ -246,7 +246,33 @@ export async function getAwarenessEvents(): Promise<AwarenessEvent[]> {
   return getStored<AwarenessEvent[]>(AWARENESS_STORAGE_KEY, INITIAL_AWARENESS_EVENTS);
 }
 
-// 8b. Update Awareness Event / Conference
+// 8b. Create Awareness Event / Holiday / Conference / Local Event
+export async function createAwarenessEvent(
+  newEvent: Omit<AwarenessEvent, 'id' | 'created_at'>
+): Promise<AwarenessEvent> {
+  const current = getStored<AwarenessEvent[]>(AWARENESS_STORAGE_KEY, INITIAL_AWARENESS_EVENTS);
+  const created: AwarenessEvent = {
+    ...newEvent,
+    id: `awr-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+    created_at: new Date().toISOString(),
+  };
+
+  const updated = [created, ...current];
+  setStored(AWARENESS_STORAGE_KEY, updated);
+
+  if (isSupabaseConfigured && supabase) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await (supabase.from('awareness_events') as any).insert([created]);
+    } catch (e) {
+      console.error('Supabase awareness create error:', e);
+    }
+  }
+
+  return created;
+}
+
+// 8c. Update Awareness Event / Conference
 export async function updateAwarenessEvent(
   id: string,
   updates: Partial<AwarenessEvent>

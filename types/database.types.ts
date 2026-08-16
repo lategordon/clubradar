@@ -6,7 +6,9 @@ export type AwarenessCategory =
   | 'Community / Conference' 
   | 'Civic / Holiday' 
   | 'Cultural' 
-  | 'Campus / Sports';
+  | 'Campus / Sports'
+  | 'City Event'
+  | 'Local Event';
 
 export type IdeaStatus = 'Draft' | 'Contacting Vendor' | 'Under Consideration' | 'Ready to Plan' | 'Promoted';
 

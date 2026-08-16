@@ -240,7 +240,7 @@ export interface TableRowItem {
   title: string;
   location: string;
   cost: number;
-  status: EventStatus | 'Awareness' | 'Holiday' | 'Conference';
+  status: EventStatus | 'Awareness' | 'Holiday' | 'Conference' | 'City Event' | 'Local Event' | string;
   category: string;
   primaryHost: string;
   coHosts: string[];
@@ -258,7 +258,10 @@ interface EventTableViewProps {
   onUpdateAwarenessEvent?: (id: string, updates: Partial<AwarenessEvent>) => Promise<void>;
   onDeleteEvent?: (id: string) => Promise<void>;
   onDeleteAwarenessEvent?: (id: string) => Promise<void>;
-  onOpenAddModal: () => void;
+  onOpenAddModal?: () => void;
+  onSelectAwareness?: (awareness: AwarenessEvent) => void;
+  onOpenAddEvent?: () => void;
+  currentDate?: Date;
 }
 
 export function EventTableView({
@@ -271,10 +274,10 @@ export function EventTableView({
   onDeleteEvent,
   onDeleteAwarenessEvent,
   onOpenAddModal,
+  onSelectAwareness,
+  onOpenAddEvent,
+  currentDate = parseISO(DEFAULT_CURRENT_DATE),
 }: EventTableViewProps) {
-  // Reference date (Simulation Date: August 11, 2026)
-  const currentDate = parseISO(DEFAULT_CURRENT_DATE);
-
   // Search & Multi-Select Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [eventScope, setEventScope] = useState<'all' | 'upcoming' | 'completed'>('upcoming');
@@ -312,7 +315,7 @@ export function EventTableView({
     startDate: string;
     location: string;
     cost: number;
-    status: EventStatus;
+    status: string;
     primaryHost: string;
     coHosts: string;
     isAwareness?: boolean;
@@ -408,7 +411,12 @@ export function EventTableView({
         title: awr.title,
         location: awr.location || 'San Francisco',
         cost: 0,
-        status: awr.category === 'Community / Conference' ? 'Conference' : 'Holiday',
+        status:
+          (awr.category || '').toLowerCase().includes('conference') || (awr.title || '').toLowerCase().includes('conference') || (awr.title || '').toLowerCase().includes('summit')
+            ? 'Conference'
+            : (awr.category || '').toLowerCase().includes('holiday') || (awr.category || '').toLowerCase().includes('civic')
+            ? 'Holiday'
+            : 'City Event',
         category: awr.category,
         primaryHost: '',
         coHosts: [],
@@ -593,12 +601,17 @@ export function EventTableView({
     const row = tableData.find((r) => r.id === id);
     if (row?.isAwareness) {
       if (onUpdateAwarenessEvent) {
+        let newCategory = editFormData.category || 'City Event';
+        if (editFormData.status === 'Conference') newCategory = 'Community / Conference';
+        else if (editFormData.status === 'Holiday') newCategory = 'Civic / Holiday';
+        else if (editFormData.status === 'City Event') newCategory = 'City Event';
+
         await onUpdateAwarenessEvent(id, {
           title: editFormData.title,
           start_date: editFormData.startDate,
           end_date: editFormData.startDate,
           location: editFormData.location,
-          category: (editFormData.category as any) || 'Community / Conference',
+          category: newCategory as any,
         });
       }
     } else {
@@ -612,7 +625,7 @@ export function EventTableView({
         event_date: editFormData.startDate,
         location_name: editFormData.location,
         cost_per_person: Number(editFormData.cost) || 0,
-        status: editFormData.status,
+        status: editFormData.status as EventStatus,
         primary_host: editFormData.primaryHost,
         co_hosts: coHostsArray,
       });
@@ -643,12 +656,24 @@ export function EventTableView({
 
   const getRowStyling = (row: TableRowItem) => {
     if (row.isAwareness) {
+      let statusLabel = 'City Event';
+      const cat = (row.category || '').toLowerCase();
+      const st = (String(row.status) || '').toLowerCase();
+
+      if (st.includes('conference') || cat.includes('conference') || cat.includes('summit')) {
+        statusLabel = 'Conference';
+      } else if (st.includes('holiday') || cat.includes('holiday') || cat.includes('civic')) {
+        statusLabel = 'Holiday';
+      } else {
+        statusLabel = 'City Event';
+      }
+
       return {
         bg: 'bg-purple-100/75 hover:bg-purple-200/60 border-l-[5px] border-l-[#57068c] text-slate-900',
         dot: 'bg-[#57068c]',
         badgeVariant: 'secondary' as const,
         badgeClass: 'bg-purple-200 text-[#57068c] border-purple-300/90 font-extrabold text-[10px] uppercase tracking-wider shadow-2xs',
-        statusText: row.status === 'Conference' || row.category === 'Community / Conference' ? 'Conference' : 'Holiday',
+        statusText: statusLabel,
       };
     }
 
@@ -1160,20 +1185,30 @@ export function EventTableView({
 
                         {/* Status Dropdown */}
                         {visibleColumns.status && (
-                          <td
-                            className={cn(
-                              "py-2.5 px-3.5",
-                              editFormData.isAwareness
-                                ? editFormData.category === 'Community / Conference'
-                                  ? "bg-indigo-600 text-white font-black text-center"
-                                  : "bg-blue-600 text-white font-black text-center"
-                                : ""
-                            )}
-                          >
+                          <td className="py-2.5 px-3.5">
                             {editFormData.isAwareness ? (
-                              <span className="text-xs font-black uppercase tracking-wider text-white">
-                                {editFormData.category === 'Community / Conference' ? 'Conference' : 'Holiday'}
-                              </span>
+                              <select
+                                value={
+                                  editFormData.category?.toLowerCase().includes('conference') || editFormData.status === 'Conference'
+                                    ? 'Conference'
+                                    : editFormData.category?.toLowerCase().includes('holiday') || editFormData.category?.toLowerCase().includes('civic') || editFormData.status === 'Holiday'
+                                    ? 'Holiday'
+                                    : 'City Event'
+                                }
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  let newCat = 'City Event';
+                                  if (val === 'Conference') newCat = 'Community / Conference';
+                                  else if (val === 'Holiday') newCat = 'Civic / Holiday';
+                                  else newCat = 'City Event';
+                                  setEditFormData({ ...editFormData, category: newCat, status: val as any });
+                                }}
+                                className="h-8 rounded-md border border-purple-300 bg-white px-2 text-xs font-bold text-[#57068c] focus:ring-1 focus:ring-purple-600"
+                              >
+                                <option value="Holiday">Holiday</option>
+                                <option value="Conference">Conference</option>
+                                <option value="City Event">City Event</option>
+                              </select>
                             ) : (
                               <select
                                 value={editFormData.status}
@@ -1210,11 +1245,18 @@ export function EventTableView({
                             {editFormData.isAwareness ? (
                               <select
                                 value={editFormData.category}
-                                onChange={(e) => setEditFormData({ ...editFormData, category: e.target.value })}
+                                onChange={(e) => {
+                                  const newCat = e.target.value;
+                                  let newSt = 'City Event';
+                                  if (newCat.includes('Conference')) newSt = 'Conference';
+                                  else if (newCat.includes('Holiday') || newCat.includes('Civic')) newSt = 'Holiday';
+                                  setEditFormData({ ...editFormData, category: newCat, status: newSt as any });
+                                }}
                                 className="h-8 rounded-md border border-slate-300 bg-white px-2 text-xs font-medium focus:ring-1 focus:ring-purple-600"
                               >
-                                <option value="Community / Conference">Community / Conference</option>
+                                <option value="City Event">City Event</option>
                                 <option value="Civic / Holiday">Civic / Holiday</option>
+                                <option value="Community / Conference">Community / Conference</option>
                                 <option value="Cultural">Cultural</option>
                                 <option value="Campus / Sports">Campus / Sports</option>
                               </select>

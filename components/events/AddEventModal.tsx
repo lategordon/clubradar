@@ -128,7 +128,7 @@ export function AddEventModal({
           category = 'Community / Conference';
           colorTag = 'indigo';
         } else if (awarenessType === 'local') {
-          category = 'Cultural';
+          category = 'City Event';
           colorTag = 'rose';
         }
 

@@ -187,6 +187,18 @@ export default function VolunteersPage() {
     }
   };
 
+  // Copy individual email
+  const handleCopyIndividualEmail = (email: string, name: string) => {
+    if (navigator.clipboard && email) {
+      navigator.clipboard.writeText(email);
+      addToast(
+        'Email Copied',
+        `${name}'s email (${email}) copied to clipboard.`,
+        'success'
+      );
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f8fafc]">
       <Navbar activeTab="volunteers" />
@@ -207,7 +219,7 @@ export default function VolunteersPage() {
                   </span>
                 </h1>
                 <p className="text-xs font-medium text-slate-500 mt-0.5">
-                  Manage club volunteers, assign event slates, and track lead-time SLA compliance.
+                  Manage club volunteers, assign event slates, and track workload capacity meters.
                 </p>
               </div>
             </div>
@@ -218,7 +230,7 @@ export default function VolunteersPage() {
               variant="outline"
               size="sm"
               onClick={handleCopyEmailList}
-              className="text-xs font-bold text-slate-700 gap-1.5 shadow-2xs"
+              className="text-xs font-bold text-slate-700 gap-1.5 shadow-2xs hover:bg-purple-50 hover:text-[#57068c] hover:border-purple-200 transition-all"
               title="Copy all volunteer emails"
             >
               <Copy className="h-3.5 w-3.5" />
@@ -302,12 +314,14 @@ export default function VolunteersPage() {
                   setSelectedEvent(evt);
                   setIsDetailsOpen(true);
                 }}
+                onCopyEmail={handleCopyIndividualEmail}
               />
             ) : (
               /* Compact, Simple 3-Column Volunteer Cards */
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
                 {filteredLeaders.map((leader) => {
                   const assignedEvents = getLeaderAssignedEvents(leader.name);
+                  const count = assignedEvents.length;
 
                   return (
                     <div
@@ -336,14 +350,14 @@ export default function VolunteersPage() {
                           </div>
 
                           {leader.badge && (
-                            <span className="rounded px-1.5 py-0.2 text-[9px] font-extrabold text-[#57068c] bg-purple-50 border border-purple-200 shrink-0">
+                            <span className="rounded px-1.5 py-0.2 text-[9px] font-extrabold text-[#57068c] bg-purple-50 border border-purple-200 shrink-0 shadow-2xs">
                               {leader.badge}
                             </span>
                           )}
                         </div>
 
-                        {/* Email */}
-                        <div className="mt-2.5 text-[11px] text-slate-600">
+                        {/* Email with One-Click Copy */}
+                        <div className="mt-2.5 text-[11px] text-slate-600 flex items-center justify-between gap-1">
                           <div className="flex items-center gap-1.5 truncate">
                             <Mail className="h-3 w-3 text-slate-400 shrink-0" />
                             <a
@@ -354,6 +368,48 @@ export default function VolunteersPage() {
                               {leader.email}
                             </a>
                           </div>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleCopyIndividualEmail(leader.email, leader.name);
+                            }}
+                            className="p-1 rounded text-slate-400 hover:text-[#57068c] hover:bg-purple-50 transition-all hover:scale-110 active:scale-95 shrink-0"
+                            title="Copy email address"
+                          >
+                            <Copy className="h-3 w-3" />
+                          </button>
+                        </div>
+
+                        {/* Visual 3-Segment Capacity Meter */}
+                        <div className="mt-3 pt-2.5 border-t border-slate-100 space-y-1.5">
+                          <div className="flex items-center justify-between text-[10px] font-bold">
+                            <span className="text-slate-600">Quarterly Workload</span>
+                            <span className={cn(
+                              count >= 3
+                                ? 'text-amber-800 font-extrabold'
+                                : count >= 1
+                                ? 'text-emerald-800 font-bold'
+                                : 'text-slate-500'
+                            )}>
+                              {count} / 3 Planned {count >= 3 ? '(Full)' : count >= 1 ? '(Optimal)' : '(Available)'}
+                            </span>
+                          </div>
+                          {/* Segmented meter bar */}
+                          <div className="grid grid-cols-3 gap-1">
+                            <div className={cn(
+                              "h-1.5 rounded-full transition-colors",
+                              count >= 1 ? "bg-emerald-500" : "bg-slate-200"
+                            )} />
+                            <div className={cn(
+                              "h-1.5 rounded-full transition-colors",
+                              count >= 2 ? "bg-emerald-500" : "bg-slate-200"
+                            )} />
+                            <div className={cn(
+                              "h-1.5 rounded-full transition-colors",
+                              count >= 3 ? "bg-amber-500" : "bg-slate-200"
+                            )} />
+                          </div>
                         </div>
                       </div>
 
@@ -362,8 +418,7 @@ export default function VolunteersPage() {
                         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md">
                           <Calendar className="h-3 w-3 text-purple-700" />
                           <span>
-                            {assignedEvents.length}{' '}
-                            {assignedEvents.length === 1 ? 'Event' : 'Events'}
+                            {count} {count === 1 ? 'Event' : 'Events'}
                           </span>
                         </span>
 

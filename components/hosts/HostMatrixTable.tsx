@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { ClubLeader, EnrichedEvent } from '@/types/database.types';
-import { Mail, ShieldCheck, Plus, Trash2, Edit2 } from 'lucide-react';
+import { Mail, ShieldCheck, Plus, Trash2, Edit2, Copy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface HostMatrixTableProps {
@@ -12,6 +12,7 @@ interface HostMatrixTableProps {
   onAssignEvent: (leader: ClubLeader) => void;
   onDeleteLeader: (id: string, name: string) => void;
   onSelectEvent: (event: EnrichedEvent) => void;
+  onCopyEmail?: (email: string, name: string) => void;
 }
 
 export function HostMatrixTable({
@@ -21,6 +22,7 @@ export function HostMatrixTable({
   onAssignEvent,
   onDeleteLeader,
   onSelectEvent,
+  onCopyEmail,
 }: HostMatrixTableProps) {
   const getLeaderEvents = (leaderName: string) => {
     return events.filter(
@@ -49,22 +51,6 @@ export function HostMatrixTable({
               const assigned = getLeaderEvents(leader.name);
               const eventCount = assigned.length;
 
-              let capacityPercent = 50;
-              let capacityColor = 'bg-emerald-500';
-              if (eventCount === 0) {
-                capacityPercent = 10;
-                capacityColor = 'bg-slate-300';
-              } else if (eventCount === 1) {
-                capacityPercent = 40;
-                capacityColor = 'bg-sky-500';
-              } else if (eventCount === 2) {
-                capacityPercent = 75;
-                capacityColor = 'bg-purple-600';
-              } else {
-                capacityPercent = 100;
-                capacityColor = 'bg-amber-500';
-              }
-
               return (
                 <tr
                   key={leader.id}
@@ -81,19 +67,34 @@ export function HostMatrixTable({
                         <div className="font-extrabold text-slate-900 group-hover:text-[#57068c] transition-colors flex items-center gap-1.5">
                           <span>{leader.name}</span>
                           {leader.badge && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-50 text-[#57068c] border border-purple-200">
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-purple-50 text-[#57068c] border border-purple-200 shadow-2xs">
                               {leader.badge}
                             </span>
                           )}
                         </div>
-                        <a
-                          href={`mailto:${leader.email}`}
-                          onClick={(e) => e.stopPropagation()}
-                          className="text-[11px] text-slate-500 hover:text-[#57068c] hover:underline flex items-center gap-1 mt-0.5"
-                        >
-                          <Mail className="h-3 w-3" />
-                          <span>{leader.email}</span>
-                        </a>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <a
+                            href={`mailto:${leader.email}`}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[11px] text-slate-500 hover:text-[#57068c] hover:underline flex items-center gap-1"
+                          >
+                            <Mail className="h-3 w-3 text-slate-400" />
+                            <span>{leader.email}</span>
+                          </a>
+                          {onCopyEmail && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onCopyEmail(leader.email, leader.name);
+                              }}
+                              className="p-0.5 rounded text-slate-400 hover:text-[#57068c] hover:bg-purple-50 transition-all hover:scale-110 active:scale-95"
+                              title="Copy email address"
+                            >
+                              <Copy className="h-2.5 w-2.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -137,18 +138,36 @@ export function HostMatrixTable({
                     </div>
                   </td>
 
-                  {/* Workload Capacity Bar */}
+                  {/* Workload Capacity 3-Segment Meter */}
                   <td className="py-3.5 px-4 whitespace-nowrap">
-                    <div className="w-28 space-y-1">
-                      <div className="flex items-center justify-between text-[10px] font-bold text-slate-700">
-                        <span>{leader.active_quarter_capacity || `${eventCount} Events`}</span>
-                        <span className="text-slate-500">{eventCount} Active</span>
+                    <div className="w-32 space-y-1.5">
+                      <div className="flex items-center justify-between text-[10px] font-bold">
+                        <span className={cn(
+                          eventCount >= 3
+                            ? 'text-amber-800 font-extrabold'
+                            : eventCount >= 1
+                            ? 'text-emerald-800'
+                            : 'text-slate-500'
+                        )}>
+                          {eventCount} / 3 Planned
+                        </span>
+                        <span className="text-[9px] text-slate-400">
+                          {eventCount >= 3 ? 'Full' : eventCount >= 1 ? 'Optimal' : 'Open'}
+                        </span>
                       </div>
-                      <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden shadow-inner">
-                        <div
-                          className={cn('h-full rounded-full transition-all', capacityColor)}
-                          style={{ width: `${capacityPercent}%` }}
-                        />
+                      <div className="grid grid-cols-3 gap-1">
+                        <div className={cn(
+                          "h-1.5 rounded-full transition-colors",
+                          eventCount >= 1 ? "bg-emerald-500" : "bg-slate-200"
+                        )} />
+                        <div className={cn(
+                          "h-1.5 rounded-full transition-colors",
+                          eventCount >= 2 ? "bg-emerald-500" : "bg-slate-200"
+                        )} />
+                        <div className={cn(
+                          "h-1.5 rounded-full transition-colors",
+                          eventCount >= 3 ? "bg-amber-500" : "bg-slate-200"
+                        )} />
                       </div>
                     </div>
                   </td>

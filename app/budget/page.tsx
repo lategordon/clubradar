@@ -311,13 +311,13 @@ export default function BudgetPage() {
           </div>
 
           {/* 4. Remaining Stipend* (Highlighted Purple matching the spreadsheet formula) */}
-          <div className="rounded-2xl border border-purple-300 bg-purple-100/60 p-4 shadow-sm flex flex-col justify-between">
+          <div className="rounded-2xl border border-purple-300 bg-purple-100/70 p-4 shadow-sm flex flex-col justify-between space-y-3">
             <div>
               <span className="text-[11px] font-black uppercase tracking-wider text-purple-950 flex items-center justify-between">
                 <span>Remaining Stipend*</span>
                 <span
                   className={cn(
-                    'text-[10px] font-extrabold px-2 py-0.5 rounded-full',
+                    'text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-2xs',
                     fySummary.remaining_stipend >= 0
                       ? 'bg-purple-700 text-white'
                       : 'bg-rose-600 text-white'
@@ -329,7 +329,7 @@ export default function BudgetPage() {
               <div className="mt-2 flex items-baseline gap-1">
                 <span
                   className={cn(
-                    'text-3xl font-black',
+                    'text-3xl font-black font-mono tracking-tight',
                     fySummary.remaining_stipend >= 0 ? 'text-[#57068c]' : 'text-rose-700'
                   )}
                 >
@@ -337,7 +337,50 @@ export default function BudgetPage() {
                 </span>
               </div>
             </div>
-            <p className="mt-2 text-[10px] text-purple-900/90 italic font-medium leading-tight">
+
+            {/* Visual Stipend Utilization Progress Bar */}
+            <div className="space-y-1.5 pt-1 border-t border-purple-200/80">
+              <div className="flex items-center justify-between text-[10px] font-bold text-purple-950">
+                <span>$5k Stipend Utilization</span>
+                <span className="font-mono">
+                  {Math.min(100, Math.max(0, ((5000 - fySummary.remaining_stipend) / 5000) * 100)).toFixed(1)}% Used
+                </span>
+              </div>
+              <div className="h-2 w-full rounded-full bg-purple-200/80 overflow-hidden flex shadow-inner">
+                {/* Realized Actuals segment */}
+                <div
+                  className="bg-[#57068c] h-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, Math.max(0, (fySummary.actual_total / 5000) * 100))}%`,
+                  }}
+                  title={`Actuals Spent: $${fySummary.actual_total.toFixed(2)}`}
+                />
+                {/* Planned Future Subsidies segment */}
+                <div
+                  className="bg-purple-400 h-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(
+                      100 - Math.min(100, Math.max(0, (fySummary.actual_total / 5000) * 100)),
+                      Math.max(0, ((5000 - fySummary.remaining_stipend - fySummary.actual_total) / 5000) * 100)
+                    )}%`,
+                  }}
+                  title="Planned Future Subsidies"
+                />
+              </div>
+              <div className="flex items-center justify-between text-[9px] text-purple-900 font-semibold">
+                <span className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-[#57068c]" />
+                  <span>Realized</span>
+                </span>
+                <span className="flex items-center gap-1">
+                  <span className="h-1.5 w-1.5 rounded-full bg-purple-400" />
+                  <span>Planned</span>
+                </span>
+                <span className="font-mono text-slate-500">$5,000 Cap</span>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-purple-900/80 italic font-medium leading-tight">
               *Calculated by subtracting actual past expenses + budgeted future expenses
             </p>
           </div>

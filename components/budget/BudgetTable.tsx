@@ -142,23 +142,29 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
   return (
     <div className="rounded-2xl border border-slate-200 bg-white shadow-xs overflow-hidden">
       {/* Click-to-edit tip bar */}
-      <div className="bg-purple-50/60 border-b border-purple-100 px-4 py-1.5 flex items-center justify-between text-[11px] text-purple-950 font-medium">
-        <span className="flex items-center gap-1.5">
-          <Edit3 className="h-3.5 w-3.5 text-purple-700" />
-          <span><strong>Quick Edit:</strong> Click directly into any <strong>Actual</strong>, <strong>Budgeted</strong>, or <strong>Notes</strong> cell to type and update numbers instantly.</span>
+      <div className="bg-purple-50/70 border-b border-purple-100 px-4 py-2 flex items-center justify-between text-xs text-purple-950 font-medium">
+        <span className="flex items-center gap-2">
+          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-purple-200 text-purple-900">
+            <Edit3 className="h-3 w-3" />
+          </span>
+          <span>
+            <strong>Spreadsheet Mode:</strong> Click directly into any <strong>Actual</strong>, <strong>Budgeted</strong>, or <strong>Notes</strong> cell to edit values inline.
+          </span>
         </span>
-        <span className="text-[10px] text-purple-700/80 hidden sm:inline">Press Enter or click away to save</span>
+        <span className="text-[11px] text-purple-800 bg-purple-100/80 px-2 py-0.5 rounded-full font-semibold hidden sm:inline">
+          Press Enter or Tab to save
+        </span>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto max-h-[70vh] relative">
         <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50/90 text-[11px] font-black uppercase tracking-wider text-slate-600">
+          <thead className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur-xs shadow-2xs">
+            <tr className="border-b border-slate-200 text-[11px] font-black uppercase tracking-wider text-slate-600">
               <th className="py-3 px-4 w-[280px]">Event / Expense Name</th>
               <th className="py-3 px-3 w-[110px]">Date</th>
               <th className="py-3 px-3 w-[120px] text-right">Budgeted ($)</th>
-              <th className="py-3 px-3 w-[130px] text-right bg-purple-50/40 border-x border-purple-100/80 text-purple-950">
-                Actual ($) <span className="text-[9px] font-normal text-purple-700">(Click to Edit)</span>
+              <th className="py-3 px-3 w-[140px] text-right bg-purple-100/50 border-x border-purple-200 text-purple-950">
+                Actual ($) <span className="text-[9px] font-normal text-purple-700 block sm:inline">(Click to Edit)</span>
               </th>
               <th className="py-3 px-3 w-[100px] text-right">Variance</th>
               <th className="py-3 px-4">Notes / Annotations</th>
@@ -184,16 +190,16 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
                   className={cn(
                     'transition-colors group',
                     isPastFY
-                      ? 'bg-amber-50/70 hover:bg-amber-100/60'
+                      ? 'bg-amber-50/70 hover:bg-amber-100/70'
                       : isCancelled
                       ? 'bg-slate-50/80 text-slate-400'
-                      : 'hover:bg-purple-50/30'
+                      : 'hover:bg-purple-50/40'
                   )}
                 >
                   {/* Event Name (Click to edit) */}
                   <td
                     onClick={() => startCellEdit(item, 'eventName')}
-                    className="py-2 px-4 font-semibold text-slate-900 cursor-pointer hover:bg-purple-100/40 rounded transition-colors"
+                    className="py-2.5 px-4 font-semibold text-slate-900 cursor-pointer group/cell hover:bg-purple-100/40 transition-colors"
                     title="Click to edit event name"
                   >
                     {isEditingName ? (
@@ -204,29 +210,32 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
                         onChange={(e) => setTempVal(e.target.value)}
                         onBlur={commitCellEdit}
                         onKeyDown={handleKeyDown}
-                        className="w-full rounded border-2 border-purple-600 bg-white px-2 py-1 text-xs font-bold text-slate-900 focus:outline-none shadow-sm"
+                        className="w-full rounded border-2 border-[#57068c] bg-white px-2 py-1 text-xs font-bold text-slate-900 focus:outline-none shadow-sm"
                       />
                     ) : (
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={cn(
-                            'font-bold',
-                            isCancelled && 'line-through text-slate-400',
-                            isPastFY && 'text-amber-950'
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={cn(
+                              'font-bold',
+                              isCancelled && 'line-through text-slate-400',
+                              isPastFY && 'text-amber-950'
+                            )}
+                          >
+                            {item.event_name}
+                          </span>
+                          {isPastFY && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-200/90 text-amber-900 border border-amber-300 shrink-0 shadow-2xs">
+                              Past FY Rollover
+                            </span>
                           )}
-                        >
-                          {item.event_name}
-                        </span>
-                        {isPastFY && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-amber-200/90 text-amber-900 border border-amber-300 shrink-0">
-                            Past FY Rollover
-                          </span>
-                        )}
-                        {isCancelled && (
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-200 text-slate-600 border border-slate-300 shrink-0">
-                            Cancelled
-                          </span>
-                        )}
+                          {isCancelled && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-slate-200 text-slate-600 border border-slate-300 shrink-0 shadow-2xs">
+                              Cancelled
+                            </span>
+                          )}
+                        </div>
+                        <Edit3 className="h-3 w-3 text-purple-400 opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
                       </div>
                     )}
                   </td>
@@ -234,7 +243,7 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
                   {/* Date (Click to edit) */}
                   <td
                     onClick={() => startCellEdit(item, 'date')}
-                    className="py-2 px-3 whitespace-nowrap text-slate-600 font-mono text-[11px] cursor-pointer hover:bg-purple-100/40 rounded transition-colors"
+                    className="py-2.5 px-3 whitespace-nowrap text-slate-600 font-mono text-[11px] cursor-pointer group/cell hover:bg-purple-100/40 transition-colors"
                     title="Click to edit date"
                   >
                     {isEditingDate ? (
@@ -245,7 +254,7 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
                         onChange={(e) => setTempVal(e.target.value)}
                         onBlur={commitCellEdit}
                         onKeyDown={handleKeyDown}
-                        className="w-full rounded border-2 border-purple-600 bg-white px-1 py-0.5 text-[11px] font-mono shadow-sm focus:outline-none"
+                        className="w-full rounded border-2 border-[#57068c] bg-white px-1 py-0.5 text-[11px] font-mono shadow-sm focus:outline-none"
                       />
                     ) : (
                       <span className={cn(isCancelled && 'line-through text-slate-400')}>
@@ -257,7 +266,7 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
                   {/* Budgeted ($) (Click to edit) */}
                   <td
                     onClick={() => startCellEdit(item, 'budgeted')}
-                    className="py-2 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap cursor-pointer hover:bg-purple-100/50 rounded transition-colors"
+                    className="py-2.5 px-3 text-right font-mono font-bold text-slate-900 whitespace-nowrap cursor-pointer group/cell hover:bg-purple-100/50 transition-colors"
                     title="Click to edit budgeted amount"
                   >
                     {isEditingBudgeted ? (
@@ -269,12 +278,12 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
                         onChange={(e) => setTempVal(e.target.value)}
                         onBlur={commitCellEdit}
                         onKeyDown={handleKeyDown}
-                        className="w-24 text-right rounded border-2 border-purple-600 bg-white px-1.5 py-0.5 text-xs font-mono font-bold shadow-sm focus:outline-none"
+                        className="w-24 text-right rounded border-2 border-[#57068c] bg-white px-1.5 py-0.5 text-xs font-mono font-bold shadow-sm focus:outline-none"
                       />
                     ) : (
                       <span
                         className={cn(
-                          'px-1.5 py-0.5 rounded transition-all',
+                          'inline-block px-1.5 py-0.5 rounded transition-all border-b border-transparent group-hover/cell:border-purple-300',
                           savedCellId === `${item.id}-budgeted` && 'bg-emerald-200 text-emerald-950 font-black ring-2 ring-emerald-400',
                           isCancelled && 'line-through text-slate-400'
                         )}
@@ -288,10 +297,10 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
                   <td
                     onClick={() => startCellEdit(item, 'actual')}
                     className={cn(
-                      'py-2 px-3 text-right font-mono font-bold whitespace-nowrap cursor-pointer border-x border-purple-100/80 transition-all',
+                      'py-2.5 px-3 text-right font-mono font-bold whitespace-nowrap cursor-pointer border-x border-purple-100 transition-all group/cell',
                       isEditingActual
-                        ? 'bg-purple-100/80 ring-2 ring-purple-500'
-                        : 'bg-purple-50/25 hover:bg-purple-100/70'
+                        ? 'bg-purple-100/90 ring-2 ring-[#57068c]'
+                        : 'bg-purple-50/30 hover:bg-purple-100/80'
                     )}
                     title="Click to enter or change actual amount"
                   >
@@ -310,26 +319,26 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
                     ) : hasActual ? (
                       <span
                         className={cn(
-                          'inline-block px-1.5 py-0.5 rounded font-extrabold transition-all',
+                          'inline-block px-2 py-0.5 rounded font-extrabold transition-all border-b border-transparent group-hover/cell:border-purple-400',
                           savedCellId === `${item.id}-actual`
                             ? 'bg-emerald-200 text-emerald-950 font-black ring-2 ring-emerald-400'
                             : item.actual! > item.budgeted && item.budgeted > 0
-                            ? 'text-amber-700 bg-amber-50 group-hover:bg-amber-100/80'
-                            : 'text-emerald-800 bg-emerald-50 group-hover:bg-emerald-100/80',
+                            ? 'text-amber-800 bg-amber-100/80 group-hover:bg-amber-200/80'
+                            : 'text-emerald-800 bg-emerald-100/80 group-hover:bg-emerald-200/80',
                           isCancelled && 'line-through text-slate-400'
                         )}
                       >
                         {fmtCurrency(item.actual)}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-purple-700 hover:text-purple-950 bg-purple-100/80 px-2 py-0.5 rounded border border-purple-200 shadow-2xs">
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:text-purple-950 bg-white hover:bg-purple-100 px-2 py-0.5 rounded-md border border-purple-300 shadow-2xs transition-all">
                         <span>+ Enter Actual</span>
                       </span>
                     )}
                   </td>
 
                   {/* Variance (Budgeted - Actual) */}
-                  <td className="py-2 px-3 text-right font-mono text-[11px] whitespace-nowrap">
+                  <td className="py-2.5 px-3 text-right font-mono text-[11px] whitespace-nowrap">
                     {hasActual && !isCancelled ? (
                       <span
                         className={cn(
@@ -349,7 +358,7 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
                   {/* Notes & Annotations (Click to edit) */}
                   <td
                     onClick={() => startCellEdit(item, 'notes')}
-                    className="py-2 px-4 text-[11px] text-slate-600 cursor-pointer hover:bg-purple-100/40 rounded transition-colors"
+                    className="py-2.5 px-4 text-[11px] text-slate-600 cursor-pointer group/cell hover:bg-purple-100/40 transition-colors"
                     title="Click to edit notes"
                   >
                     {isEditingNotes ? (
@@ -361,23 +370,26 @@ export function BudgetTable({ items, onUpdateItem, onDeleteItem }: BudgetTablePr
                         onChange={(e) => setTempVal(e.target.value)}
                         onBlur={commitCellEdit}
                         onKeyDown={handleKeyDown}
-                        className="w-full rounded border-2 border-purple-600 bg-white px-2 py-1 text-xs shadow-sm focus:outline-none"
+                        className="w-full rounded border-2 border-[#57068c] bg-white px-2 py-1 text-xs shadow-sm focus:outline-none"
                       />
                     ) : (
-                      <span
-                        className={cn(
-                          item.notes ? 'text-slate-700 font-medium' : 'text-slate-400 italic',
-                          savedCellId === `${item.id}-notes` && 'bg-emerald-100 text-emerald-950 px-1 rounded',
-                          isCancelled && 'line-through text-slate-400'
-                        )}
-                      >
-                        {item.notes || '—'}
-                      </span>
+                      <div className="flex items-center justify-between gap-2">
+                        <span
+                          className={cn(
+                            item.notes ? 'text-slate-700 font-medium' : 'text-slate-400 italic',
+                            savedCellId === `${item.id}-notes` && 'bg-emerald-100 text-emerald-950 px-1 rounded',
+                            isCancelled && 'line-through text-slate-400'
+                          )}
+                        >
+                          {item.notes || '—'}
+                        </span>
+                        <Edit3 className="h-3 w-3 text-purple-400 opacity-0 group-hover/cell:opacity-100 transition-opacity shrink-0" />
+                      </div>
                     )}
                   </td>
 
                   {/* Actions */}
-                  <td className="py-2 px-3 text-right whitespace-nowrap">
+                  <td className="py-2.5 px-3 text-right whitespace-nowrap">
                     <div className="flex items-center justify-end gap-1 opacity-70 group-hover:opacity-100 transition-opacity">
                       <button
                         type="button"

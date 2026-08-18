@@ -68,6 +68,7 @@ export function IdeaCard({
       <div className="space-y-3">
         {/* Top Meta Bar */}
         <div className="flex items-center justify-between gap-2">
+          {/* Meta Badges */}
           <div className="flex items-center gap-1.5 flex-wrap">
             {/* Drag Handle */}
             <div
@@ -87,10 +88,17 @@ export function IdeaCard({
                   ? 'warning'
                   : 'secondary'
               }
-              className="text-[10px] font-bold"
+              className="text-[10px] font-bold shadow-2xs"
             >
               {idea.status}
             </Badge>
+
+            {idea.upvotes >= 5 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-black text-purple-900 bg-amber-100/90 border border-amber-300 px-2 py-0.5 rounded-full shadow-2xs">
+                <Sparkles className="h-2.5 w-2.5 text-amber-600 fill-amber-600" />
+                <span>High Interest</span>
+              </span>
+            )}
 
             <span className="text-[11px] font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
               {idea.suggested_region}
@@ -103,7 +111,7 @@ export function IdeaCard({
             )}
           </div>
 
-          {/* Upvote Button */}
+          {/* Upvote Button with Tactile Micro-Interactions */}
           <button
             type="button"
             onClick={(e) => {
@@ -111,14 +119,14 @@ export function IdeaCard({
               onUpvote(idea.id);
             }}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold transition-all shadow-2xs cursor-pointer select-none",
+              "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold transition-all duration-150 shadow-2xs cursor-pointer select-none hover:scale-105 active:scale-90",
               hasUpvoted
-                ? "bg-[#57068c] text-white ring-2 ring-purple-300 hover:bg-[#460570]"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                ? "bg-[#57068c] text-white ring-2 ring-purple-300 hover:bg-[#460570] shadow-xs"
+                : "bg-slate-100 text-slate-700 hover:bg-purple-50 hover:text-[#57068c] border border-slate-200"
             )}
             title="Upvote this idea to show interest"
           >
-            <ThumbsUp className={cn("h-3.5 w-3.5", hasUpvoted ? "fill-current" : "")} />
+            <ThumbsUp className={cn("h-3.5 w-3.5 transition-transform duration-150", hasUpvoted ? "fill-current scale-110" : "")} />
             <span>{idea.upvotes}</span>
           </button>
         </div>
@@ -209,7 +217,7 @@ export function IdeaCard({
 
         {/* Upgrade / Promote Button */}
         {isPromoted ? (
-          <div className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg">
+          <div className="flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-100 px-2.5 py-1 rounded-lg shadow-2xs">
             <CheckCircle2 className="h-3.5 w-3.5" />
             <span>Scheduled Event</span>
           </div>
@@ -217,9 +225,14 @@ export function IdeaCard({
           <Button
             size="sm"
             onClick={() => onUpgrade(idea)}
-            className="h-8 bg-[#57068c] hover:bg-[#460570] text-white text-xs font-bold gap-1.5 shadow-xs"
+            className={cn(
+              "h-8 text-white text-xs font-bold gap-1.5 shadow-xs transition-all duration-150 hover:scale-[1.03] active:scale-95 cursor-pointer",
+              idea.upvotes >= 5 || idea.status === 'Ready to Plan'
+                ? "bg-linear-to-r from-[#57068c] via-purple-700 to-[#57068c] hover:from-[#460570] hover:to-[#460570] ring-1 ring-purple-300"
+                : "bg-[#57068c] hover:bg-[#460570]"
+            )}
           >
-            <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+            <Sparkles className="h-3.5 w-3.5 text-amber-300 fill-amber-300" />
             <span>Upgrade to Event</span>
           </Button>
         )}

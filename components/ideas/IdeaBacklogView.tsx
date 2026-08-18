@@ -648,14 +648,14 @@ export function IdeaBacklogView() {
                             type="button"
                             onClick={() => handleUpvote(idea.id)}
                             className={cn(
-                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold transition-all cursor-pointer select-none",
+                              "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold transition-all duration-150 shadow-2xs cursor-pointer select-none hover:scale-105 active:scale-90",
                               hasUpvoted
-                                ? "bg-[#57068c] text-white hover:bg-[#460570]"
-                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                                ? "bg-[#57068c] text-white hover:bg-[#460570] ring-1 ring-purple-300"
+                                : "bg-slate-100 text-slate-700 hover:bg-purple-50 hover:text-[#57068c] border border-slate-200"
                             )}
                             title="Upvote idea"
                           >
-                            <ThumbsUp className="h-3 w-3" />
+                            <ThumbsUp className={cn("h-3 w-3 transition-transform", hasUpvoted ? "fill-current scale-110" : "")} />
                             <span>{idea.upvotes}</span>
                           </button>
                         </td>
@@ -680,9 +680,17 @@ export function IdeaBacklogView() {
                             </div>
                           ) : (
                             <div>
-                              <span className="font-bold text-slate-900 leading-snug block">
-                                {idea.title}
-                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-slate-900 leading-snug">
+                                  {idea.title}
+                                </span>
+                                {idea.upvotes >= 5 && (
+                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-black text-purple-900 bg-amber-100 border border-amber-300 px-1.5 py-0.2 rounded-full shadow-2xs">
+                                    <Sparkles className="h-2 w-2 text-amber-600 fill-amber-600" />
+                                    <span>High Interest</span>
+                                  </span>
+                                )}
+                              </div>
                               {idea.description && (
                                 <p className="text-slate-500 text-[11px] mt-0.5 line-clamp-1">
                                   {idea.description}
@@ -861,9 +869,14 @@ export function IdeaBacklogView() {
                                 <Button
                                   size="sm"
                                   onClick={() => handleStartUpgrade(idea)}
-                                  className="h-7 px-2.5 bg-[#57068c] hover:bg-[#460570] text-white text-[11px] font-bold gap-1 shadow-2xs cursor-pointer"
+                                  className={cn(
+                                    "h-7 px-2.5 text-white text-[11px] font-bold gap-1 shadow-2xs cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95",
+                                    idea.upvotes >= 5 || idea.status === 'Ready to Plan'
+                                      ? "bg-linear-to-r from-[#57068c] via-purple-700 to-[#57068c] hover:from-[#460570] hover:to-[#460570] ring-1 ring-purple-300"
+                                      : "bg-[#57068c] hover:bg-[#460570]"
+                                  )}
                                 >
-                                  <Sparkles className="h-3 w-3 text-amber-300" />
+                                  <Sparkles className="h-3 w-3 text-amber-300 fill-amber-300" />
                                   <span>Upgrade</span>
                                 </Button>
                               )}

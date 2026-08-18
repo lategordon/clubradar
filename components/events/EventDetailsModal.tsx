@@ -16,6 +16,9 @@ import {
   Send,
   PartyPopper,
   Copy,
+  Check,
+  Ban,
+  XCircle,
 } from 'lucide-react';
 import { EnrichedEvent, EventStatus } from '@/types/database.types';
 import { WorkflowLeadTimeStepper } from '@/components/events/WorkflowLeadTimeStepper';
@@ -51,24 +54,17 @@ export function EventDetailsModal({
 
   const formattedDate = format(parseISO(event.event_date), 'EEEE, MMMM d, yyyy');
 
-  // Determine next stage
-  const getNextStage = (current: EventStatus): EventStatus | null => {
-    if (current === 'Idea') return 'Planning';
-    if (current === 'Planning') return 'Submitted';
-    if (current === 'Submitted') return 'Confirmed';
-    if (current === 'Confirmed') return 'Completed';
-    return null;
-  };
-
-  const nextStage = getNextStage(event.status);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogHeader>
         <div className="flex items-center justify-between pr-6">
           <Badge
             variant={
-              event.status === 'Submitted'
+              event.status === 'Completed'
+                ? 'completed'
+                : event.status === 'Cancelled'
+                ? 'cancelled'
+                : event.status === 'Submitted'
                 ? 'submitted'
                 : event.status === 'Planning'
                 ? 'planning'
@@ -76,13 +72,16 @@ export function EventDetailsModal({
                 ? 'confirmed'
                 : 'idea'
             }
-            className="text-xs font-bold"
+            className="text-xs font-bold shadow-2xs"
           >
             {event.status}
           </Badge>
           <span className="text-xs text-slate-500 font-semibold">{event.region} Region</span>
         </div>
-        <DialogTitle className="text-xl font-extrabold text-slate-900 mt-1">
+        <DialogTitle className={cn(
+          "text-xl font-extrabold text-slate-900 mt-1",
+          event.status === 'Cancelled' && "line-through text-slate-500"
+        )}>
           {event.title}
         </DialogTitle>
         <DialogDescription className="flex flex-wrap items-center gap-2 text-xs text-slate-600 font-medium">
@@ -100,29 +99,103 @@ export function EventDetailsModal({
       <DialogClose onClose={() => onOpenChange(false)} />
 
       <DialogContent className="space-y-4 text-xs">
-        {/* Visual 5-Stage Lead-Time Milestone Stepper */}
+        {/* Visual Lead-Time Milestone Stepper */}
         <WorkflowLeadTimeStepper event={event} />
 
-        {/* Action Bar: Next Stage Promotion */}
-        {nextStage && (
+        {/* Action Bar: Lifecycle Progression (Planning -> Submitted -> Completed / Cancelled) */}
+        {event.status === 'Planning' && (
           <div className="flex items-center justify-between rounded-xl border border-purple-200 bg-purple-50/70 p-3 shadow-2xs">
             <div>
               <span className="text-xs font-bold text-purple-950">Next Stage in Pipeline:</span>
               <p className="text-[11px] text-purple-800 font-medium">
-                {nextStage === 'Submitted'
-                  ? 'Submit marketing copy to NYU Alumni Relations for promotion blast'
-                  : nextStage === 'Confirmed'
-                  ? 'RSVP link active and venue reservation locked'
-                  : `Advance stage to ${nextStage}`}
+                Submit marketing copy to NYU Alumni Relations for promotion blast
               </p>
             </div>
             <Button
               size="sm"
-              onClick={() => onUpdateStatus(event.id, nextStage)}
+              onClick={() => onUpdateStatus(event.id, 'Submitted')}
               className="bg-[#57068c] hover:bg-[#460570] text-white font-bold text-xs gap-1.5 shadow-xs"
             >
-              <span>Advance to {nextStage}</span>
+              <span>Advance to Submitted</span>
               <ArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+        )}
+
+        {(event.status === 'Submitted' || event.status === 'Confirmed') && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 shadow-2xs">
+            <div>
+              <span className="text-xs font-bold text-slate-900">Event Conclusion:</span>
+              <p className="text-[11px] text-slate-600 font-medium">
+                Once the event date concludes, mark as completed or cancelled
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                onClick={() => onUpdateStatus(event.id, 'Completed')}
+                className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs gap-1.5 shadow-xs"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" />
+                <span>Mark Completed</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onUpdateStatus(event.id, 'Cancelled')}
+                className="border-rose-200 text-rose-700 hover:bg-rose-50 font-bold text-xs gap-1.5"
+              >
+                <Ban className="h-3.5 w-3.5" />
+                <span>Mark Cancelled</span>
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {event.status === 'Completed' && (
+          <div className="flex items-center justify-between rounded-xl border border-emerald-200 bg-emerald-50/80 p-3 shadow-2xs text-emerald-950">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white">
+                <CheckCircle2 className="h-4 w-4" />
+              </span>
+              <div>
+                <span className="text-xs font-bold text-emerald-950">Event Completed</span>
+                <p className="text-[11px] text-emerald-800 font-medium">
+                  This event successfully occurred. Actual expenses are recorded in the budget ledger.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onUpdateStatus(event.id, 'Planning')}
+              className="text-[11px] h-7 text-emerald-900 border-emerald-300 hover:bg-emerald-100"
+            >
+              Reopen
+            </Button>
+          </div>
+        )}
+
+        {event.status === 'Cancelled' && (
+          <div className="flex items-center justify-between rounded-xl border border-rose-200 bg-rose-50/80 p-3 shadow-2xs text-rose-950">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-full bg-rose-600 text-white">
+                <Ban className="h-4 w-4" />
+              </span>
+              <div>
+                <span className="text-xs font-bold text-rose-950">Event Cancelled</span>
+                <p className="text-[11px] text-rose-800 font-medium">
+                  This event was cancelled and removed from active lead-time tracking.
+                </p>
+              </div>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onUpdateStatus(event.id, 'Planning')}
+              className="text-[11px] h-7 text-rose-900 border-rose-300 hover:bg-rose-100"
+            >
+              Restore to Planning
             </Button>
           </div>
         )}
@@ -209,11 +282,11 @@ export function EventDetailsModal({
             Set Specific Status
           </span>
           <div className="flex flex-wrap gap-2">
-            {(['Idea', 'Planning', 'Submitted', 'Confirmed'] as EventStatus[]).map((st) => (
+            {(['Planning', 'Submitted', 'Completed', 'Cancelled'] as EventStatus[]).map((st) => (
               <Button
                 key={st}
                 size="sm"
-                variant={event.status === st ? 'nyu' : 'outline'}
+                variant={event.status === st ? (st === 'Cancelled' ? 'destructive' : 'nyu') : 'outline'}
                 onClick={() => onUpdateStatus(event.id, st)}
                 className="text-xs h-7"
               >

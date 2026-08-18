@@ -1,4 +1,4 @@
-export type EventStatus = 'Idea' | 'Planning' | 'Submitted' | 'Confirmed' | 'Completed';
+export type EventStatus = 'Idea' | 'Planning' | 'Submitted' | 'Confirmed' | 'Completed' | 'Cancelled';
 
 export type EventRegion = 'SF' | 'East Bay' | 'South Bay' | 'Virtual' | 'NYC';
 

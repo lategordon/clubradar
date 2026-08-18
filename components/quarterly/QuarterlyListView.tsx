@@ -271,7 +271,11 @@ export function QuarterlyListView({
                                       </span>
                                       <Badge
                                         variant={
-                                          isSubmitted
+                                          evt.status === 'Completed'
+                                            ? 'completed'
+                                            : evt.status === 'Cancelled'
+                                            ? 'cancelled'
+                                            : isSubmitted
                                             ? 'submitted'
                                             : isConcept
                                             ? 'idea'

@@ -699,10 +699,11 @@ export function AddEventModal({
                     onChange={(e) => setStatus(e.target.value as EventStatus)}
                     className="h-9 text-xs font-medium"
                   >
-                    <option value="Idea">Idea Pitch</option>
                     <option value="Planning">Planning (8w Kickoff)</option>
                     <option value="Submitted">Submitted (6w Marketing)</option>
-                    <option value="Confirmed">Confirmed</option>
+                    <option value="Completed">Completed</option>
+                    <option value="Cancelled">Cancelled</option>
+                    <option value="Idea">Idea Pitch</option>
                   </Select>
                 </div>
                 <div>

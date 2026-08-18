@@ -445,7 +445,7 @@ export function EventTableView({
     tableData.forEach((r) => {
       counts[r.status] = (counts[r.status] || 0) + 1;
     });
-    const statuses = ['Submitted', 'Planning', 'Idea', 'Confirmed', 'Completed', 'Conference', 'Holiday'];
+    const statuses = ['Planning', 'Submitted', 'Completed', 'Cancelled', 'Confirmed', 'Idea', 'Conference', 'Holiday'];
     return statuses.map((s) => ({
       label: s === 'Holiday' ? 'Holiday / Civic' : s,
       value: s,
@@ -481,10 +481,10 @@ export function EventTableView({
   // Counts for scope segment tabs
   const scopeCounts = useMemo(() => {
     const upcoming = tableData.filter(
-      (r) => r.status !== 'Completed' && (r.weeksFromToday > 0 || r.isAwareness)
+      (r) => r.status !== 'Completed' && r.status !== 'Cancelled' && (r.weeksFromToday > 0 || r.isAwareness)
     ).length;
     const completed = tableData.filter(
-      (r) => r.status === 'Completed' || (r.weeksFromToday <= 0 && !r.isAwareness)
+      (r) => r.status === 'Completed' || r.status === 'Cancelled' || (r.weeksFromToday <= 0 && !r.isAwareness)
     ).length;
     return {
       all: tableData.length,
@@ -497,11 +497,11 @@ export function EventTableView({
     const result = tableData.filter((row) => {
       // Event Scope Filter
       if (eventScope === 'upcoming') {
-        if (row.status === 'Completed' || (row.weeksFromToday <= 0 && !row.isAwareness)) {
+        if (row.status === 'Completed' || row.status === 'Cancelled' || (row.weeksFromToday <= 0 && !row.isAwareness)) {
           return false;
         }
       } else if (eventScope === 'completed') {
-        if (row.status !== 'Completed' && row.weeksFromToday > 0) {
+        if (row.status !== 'Completed' && row.status !== 'Cancelled' && row.weeksFromToday > 0) {
           return false;
         }
       }
@@ -704,9 +704,15 @@ export function EventTableView({
         };
       case 'Completed':
         return {
-          bg: 'bg-slate-100/60 hover:bg-slate-200/60 border-l-[5px] border-l-slate-400 text-slate-600',
-          dot: 'bg-slate-400',
-          badgeVariant: 'secondary' as const,
+          bg: 'bg-emerald-50/40 hover:bg-emerald-100/60 border-l-[5px] border-l-emerald-600 text-slate-900',
+          dot: 'bg-emerald-600',
+          badgeVariant: 'completed' as const,
+        };
+      case 'Cancelled':
+        return {
+          bg: 'bg-rose-50/40 hover:bg-rose-100/60 border-l-[5px] border-l-rose-500 text-slate-500',
+          dot: 'bg-rose-500',
+          badgeVariant: 'cancelled' as const,
         };
       default:
         return {
@@ -1222,13 +1228,12 @@ export function EventTableView({
                               <select
                                 value={editFormData.status}
                                 onChange={(e) => setEditFormData({ ...editFormData, status: e.target.value as EventStatus })}
-                                className="h-8 rounded-md border border-purple-300 bg-white px-2 text-xs font-medium focus:ring-1 focus:ring-purple-600"
+                                className="h-8 rounded-md border border-purple-300 bg-white px-2 text-xs font-semibold focus:ring-1 focus:ring-purple-600"
                               >
-                                <option value="Idea">Idea</option>
                                 <option value="Planning">Planning</option>
                                 <option value="Submitted">Submitted</option>
-                                <option value="Confirmed">Confirmed</option>
                                 <option value="Completed">Completed</option>
+                                <option value="Cancelled">Cancelled</option>
                               </select>
                             )}
                           </td>

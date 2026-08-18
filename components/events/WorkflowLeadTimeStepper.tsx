@@ -116,8 +116,12 @@ export function WorkflowLeadTimeStepper({ event, className }: WorkflowLeadTimeSt
         <div className="flex items-center gap-1.5">
           <span className="text-[11px] font-bold text-slate-700">Status:</span>
           <span className={cn(
-            'text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border',
-            isSubmittedOrConfirmed
+            'text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full border shadow-2xs',
+            status === 'Completed'
+              ? 'bg-emerald-100 text-emerald-900 border-emerald-300'
+              : status === 'Cancelled'
+              ? 'bg-rose-100 text-rose-900 border-rose-300 line-through'
+              : isSubmittedOrConfirmed
               ? 'bg-purple-100 text-[#57068c] border-purple-200'
               : isPlanning
               ? 'bg-amber-100 text-amber-900 border-amber-300'

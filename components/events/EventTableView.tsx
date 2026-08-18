@@ -1002,41 +1002,50 @@ export function EventTableView({
         <div className="overflow-x-auto max-h-[880px] min-h-[500px]">
           <table className="w-full text-left text-xs border-collapse">
             {/* Table Header */}
-            <thead className="sticky top-0 z-10 bg-slate-100/95 backdrop-blur-md shadow-2xs border-b border-slate-200">
-              <tr className="text-slate-700 font-bold select-none">
+            <thead className="sticky top-0 z-20 bg-slate-50/95 backdrop-blur-md shadow-xs border-b border-slate-200">
+              <tr className="text-slate-700 font-bold select-none text-[11px] uppercase tracking-wider">
                 {visibleColumns.month && (
                   <th className="py-3 px-3.5 whitespace-nowrap">Month</th>
                 )}
                 {visibleColumns.date && (
                   <th
                     onClick={() => toggleSort('date')}
-                    className="py-3 px-3.5 whitespace-nowrap cursor-pointer hover:bg-slate-200/60 transition-colors"
+                    className={cn(
+                      "py-3 px-3.5 whitespace-nowrap cursor-pointer hover:bg-purple-100/60 transition-colors",
+                      sortBy === 'date' && 'text-[#57068c] font-black'
+                    )}
                   >
                     <div className="flex items-center gap-1">
                       <span>Full Date</span>
-                      <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                      <ArrowUpDown className={cn("h-3 w-3", sortBy === 'date' ? 'text-[#57068c]' : 'text-slate-400')} />
                     </div>
                   </th>
                 )}
                 {visibleColumns.weeks && (
                   <th
                     onClick={() => toggleSort('weeks')}
-                    className="py-3 px-3.5 whitespace-nowrap cursor-pointer hover:bg-slate-200/60 transition-colors"
+                    className={cn(
+                      "py-3 px-3.5 whitespace-nowrap cursor-pointer hover:bg-purple-100/60 transition-colors",
+                      sortBy === 'weeks' && 'text-[#57068c] font-black'
+                    )}
                   >
                     <div className="flex items-center gap-1">
                       <span>Weeks from today</span>
-                      <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                      <ArrowUpDown className={cn("h-3 w-3", sortBy === 'weeks' ? 'text-[#57068c]' : 'text-slate-400')} />
                     </div>
                   </th>
                 )}
                 {visibleColumns.idea && (
                   <th
                     onClick={() => toggleSort('title')}
-                    className="py-3 px-3.5 min-w-[200px] cursor-pointer hover:bg-slate-200/60 transition-colors"
+                    className={cn(
+                      "py-3 px-3.5 min-w-[200px] cursor-pointer hover:bg-purple-100/60 transition-colors",
+                      sortBy === 'title' && 'text-[#57068c] font-black'
+                    )}
                   >
                     <div className="flex items-center gap-1">
                       <span>Event Idea</span>
-                      <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                      <ArrowUpDown className={cn("h-3 w-3", sortBy === 'title' ? 'text-[#57068c]' : 'text-slate-400')} />
                     </div>
                   </th>
                 )}
@@ -1046,22 +1055,28 @@ export function EventTableView({
                 {visibleColumns.cost && (
                   <th
                     onClick={() => toggleSort('cost')}
-                    className="py-3 px-3.5 whitespace-nowrap cursor-pointer hover:bg-slate-200/60 transition-colors"
+                    className={cn(
+                      "py-3 px-3.5 whitespace-nowrap cursor-pointer hover:bg-purple-100/60 transition-colors text-right",
+                      sortBy === 'cost' && 'text-[#57068c] font-black'
+                    )}
                   >
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center justify-end gap-1">
                       <span>Cost</span>
-                      <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                      <ArrowUpDown className={cn("h-3 w-3", sortBy === 'cost' ? 'text-[#57068c]' : 'text-slate-400')} />
                     </div>
                   </th>
                 )}
                 {visibleColumns.status && (
                   <th
                     onClick={() => toggleSort('status')}
-                    className="py-3 px-3.5 whitespace-nowrap cursor-pointer hover:bg-slate-200/60 transition-colors"
+                    className={cn(
+                      "py-3 px-3.5 whitespace-nowrap cursor-pointer hover:bg-purple-100/60 transition-colors",
+                      sortBy === 'status' && 'text-[#57068c] font-black'
+                    )}
                   >
                     <div className="flex items-center gap-1">
                       <span>Status</span>
-                      <ArrowUpDown className="h-3 w-3 text-slate-400" />
+                      <ArrowUpDown className={cn("h-3 w-3", sortBy === 'status' ? 'text-[#57068c]' : 'text-slate-400')} />
                     </div>
                   </th>
                 )}
@@ -1076,7 +1091,7 @@ export function EventTableView({
             </thead>
 
             {/* Table Body */}
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 font-medium">
               {filteredData.map((row, index) => {
                 const isEditing = editingRowId === row.id;
                 const styling = getRowStyling(row);
@@ -1089,7 +1104,7 @@ export function EventTableView({
                   <React.Fragment key={row.id}>
                     {/* Quarter Divider Separator Line */}
                     {isNewQuarter && (
-                      <tr className="bg-slate-100/90 border-y-2 border-slate-300">
+                      <tr className="bg-slate-100/90 border-y border-slate-200">
                         <td
                           colSpan={totalVisibleCols}
                           className="py-2.5 px-4 bg-linear-to-r from-purple-100/80 via-slate-100 to-white"
@@ -1183,18 +1198,12 @@ export function EventTableView({
                           </td>
                         )}
 
-                        {/* Status Dropdown */}
+                        {/* Status Select */}
                         {visibleColumns.status && (
                           <td className="py-2.5 px-3.5">
                             {editFormData.isAwareness ? (
                               <select
-                                value={
-                                  editFormData.category?.toLowerCase().includes('conference') || editFormData.status === 'Conference'
-                                    ? 'Conference'
-                                    : editFormData.category?.toLowerCase().includes('holiday') || editFormData.category?.toLowerCase().includes('civic') || editFormData.status === 'Holiday'
-                                    ? 'Holiday'
-                                    : 'City Event'
-                                }
+                                value={editFormData.status}
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   let newCat = 'City Event';
@@ -1291,7 +1300,7 @@ export function EventTableView({
                       <tr
                         onClick={() => row.rawEvent && onSelectEvent(row.rawEvent)}
                         className={cn(
-                          "group transition-all cursor-pointer",
+                          "group transition-all duration-150 cursor-pointer hover:shadow-xs",
                           styling.bg
                         )}
                       >
@@ -1307,7 +1316,7 @@ export function EventTableView({
 
                         {/* Full Date */}
                         {visibleColumns.date && (
-                          <td className="py-3 px-3.5 whitespace-nowrap font-medium text-slate-700">
+                          <td className="py-3 px-3.5 whitespace-nowrap font-medium text-slate-700 font-mono text-[11px]">
                             {row.fullDateFormatted}
                           </td>
                         )}
@@ -1318,9 +1327,9 @@ export function EventTableView({
                             <div className="flex items-center gap-1.5">
                               <span
                                 className={cn(
-                                  "font-bold text-xs px-2 py-0.5 rounded shadow-2xs",
+                                  "font-bold text-xs px-2 py-0.5 rounded shadow-2xs font-mono",
                                   row.isUrgent6w
-                                    ? "bg-amber-200 text-amber-950 border border-amber-400 font-extrabold animate-pulse"
+                                    ? "bg-amber-200 text-amber-950 border border-amber-400 font-extrabold"
                                     : row.isUrgent8w
                                     ? "bg-amber-100 text-amber-900 border border-amber-300"
                                     : "bg-white/80 text-slate-700 border border-slate-200"
@@ -1329,13 +1338,14 @@ export function EventTableView({
                                 {row.weeksLabel}
                               </span>
                               {row.isUrgent6w && (
-                                <span className="text-[10px] font-bold text-amber-800 uppercase tracking-wider bg-amber-200/80 px-1 rounded">
-                                  6w Mark
+                                <span className="inline-flex items-center gap-1 text-[10px] font-black text-amber-950 uppercase tracking-wider bg-amber-200 px-2 py-0.5 rounded-full border border-amber-400 shadow-2xs animate-pulse">
+                                  <Clock className="h-3 w-3 text-amber-900" />
+                                  <span>6w Mark</span>
                                 </span>
                               )}
                               {row.isUrgent8w && !row.isUrgent6w && (
-                                <span className="text-[10px] font-semibold text-amber-700 bg-amber-100/80 px-1 rounded">
-                                  8w Mark
+                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-900 bg-amber-100/90 px-1.5 py-0.5 rounded-full border border-amber-300 shadow-2xs">
+                                  <span>8w Mark</span>
                                 </span>
                               )}
                             </div>
@@ -1348,9 +1358,14 @@ export function EventTableView({
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="group-hover:text-[#57068c] transition-colors">{row.title}</span>
                               {row.rawEvent?.is_recurring && (
-                                <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.2 text-[9px] font-extrabold uppercase tracking-wide bg-purple-100 text-[#57068c] border border-purple-200" title="Recurring Series">
+                                <span className="inline-flex items-center gap-1 rounded px-1.5 py-0.2 text-[9px] font-extrabold uppercase tracking-wide bg-purple-100 text-[#57068c] border border-purple-200 shadow-2xs" title="Recurring Series">
                                   <Repeat className="h-2.5 w-2.5" />
                                   <span>Series</span>
+                                </span>
+                              )}
+                              {row.isAwareness && (
+                                <span className="rounded px-1.5 py-0.2 text-[9px] font-extrabold uppercase tracking-wide bg-indigo-100 text-indigo-800 border border-indigo-200 shadow-2xs">
+                                  City Awareness
                                 </span>
                               )}
                             </div>
@@ -1369,7 +1384,7 @@ export function EventTableView({
 
                         {/* Cost (Togglable) */}
                         {visibleColumns.cost && (
-                          <td className="py-3 px-3.5 whitespace-nowrap font-bold text-slate-800">
+                          <td className="py-3 px-3.5 whitespace-nowrap font-bold text-slate-800 text-right font-mono">
                             {row.isAwareness ? (
                               <span className="text-slate-400 font-normal italic">—</span>
                             ) : row.cost > 0 ? (
@@ -1441,7 +1456,7 @@ export function EventTableView({
                                     await onDuplicateEvent(row.id);
                                   }
                                 }}
-                                className="rounded p-1 text-slate-400 hover:bg-purple-100 hover:text-[#57068c] transition-colors cursor-pointer"
+                                className="rounded p-1 text-slate-400 hover:bg-purple-100 hover:text-[#57068c] transition-all hover:scale-110 active:scale-95 cursor-pointer"
                                 title="Duplicate / Copy Event to Next Month"
                               >
                                 <Copy className="h-3.5 w-3.5" />
@@ -1450,7 +1465,7 @@ export function EventTableView({
                             <button
                               type="button"
                               onClick={() => handleStartEdit(row)}
-                              className="rounded p-1 text-slate-400 hover:bg-purple-100 hover:text-[#57068c] transition-colors cursor-pointer"
+                              className="rounded p-1 text-slate-400 hover:bg-purple-100 hover:text-[#57068c] transition-all hover:scale-110 active:scale-95 cursor-pointer"
                               title={row.isAwareness ? "Edit Conference / Awareness" : "Edit Event / Location"}
                             >
                               <Edit2 className="h-3.5 w-3.5" />
@@ -1470,7 +1485,7 @@ export function EventTableView({
                                   }
                                 }
                               }}
-                              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-colors cursor-pointer"
+                              className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 transition-all hover:scale-110 active:scale-95 cursor-pointer"
                               title={row.isAwareness ? "Delete Conference / Awareness" : "Delete Event"}
                             >
                               <Trash2 className="h-3.5 w-3.5" />

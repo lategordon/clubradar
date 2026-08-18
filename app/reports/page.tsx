@@ -151,9 +151,14 @@ export default function ReportsPage() {
             {/* Top KPI Metric Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
               <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-2xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                  Total Planned Slate
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                    Total Planned Slate
+                  </span>
+                  <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded-full">
+                    +15% YoY
+                  </span>
+                </div>
                 <div className="mt-1.5 flex items-baseline gap-2">
                   <span className="text-2xl font-black text-slate-900">{totalEvents}</span>
                   <span className="text-xs font-semibold text-purple-700">Events</span>
@@ -164,9 +169,14 @@ export default function ReportsPage() {
               </div>
 
               <div className="rounded-2xl border border-purple-200 bg-purple-50/50 p-4 shadow-2xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-purple-900">
-                  6-Week Copy SLA
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-purple-900">
+                    6-Week Copy SLA
+                  </span>
+                  <span className="text-[10px] font-extrabold text-purple-800 bg-purple-100 border border-purple-200 px-1.5 py-0.2 rounded-full">
+                    Target: 95%
+                  </span>
+                </div>
                 <div className="mt-1.5 flex items-baseline gap-2">
                   <span className="text-2xl font-black text-purple-950">
                     {Math.round(((totalEvents - urgent6wEvents.length) / (totalEvents || 1)) * 100)}%
@@ -186,9 +196,14 @@ export default function ReportsPage() {
               </div>
 
               <div className="rounded-2xl border border-blue-200 bg-blue-50/50 p-4 shadow-2xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900">
-                  Awareness Conflicts
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-blue-900">
+                    Awareness Radar
+                  </span>
+                  <span className="text-[10px] font-extrabold text-blue-800 bg-blue-100 border border-blue-200 px-1.5 py-0.2 rounded-full">
+                    Synergy Tracked
+                  </span>
+                </div>
                 <div className="mt-1.5 flex items-baseline gap-2">
                   <span className="text-2xl font-black text-blue-950">{conflictCount}</span>
                   <span className="text-xs font-semibold text-blue-700">Events Coinciding</span>
@@ -199,9 +214,14 @@ export default function ReportsPage() {
               </div>
 
               <div className="rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4 shadow-2xs">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
-                  Ticket Tier & Budget
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-900">
+                    FY Budget & Stipend
+                  </span>
+                  <span className="text-[10px] font-extrabold text-emerald-800 bg-emerald-100 border border-emerald-200 px-1.5 py-0.2 rounded-full">
+                    $5,000 Cap
+                  </span>
+                </div>
                 <div className="mt-1.5 flex items-baseline gap-2">
                   <span className="text-2xl font-black text-emerald-950">
                     ${financials.avgCost}
@@ -345,7 +365,11 @@ export default function ReportsPage() {
                       )}
                       <Badge
                         variant={
-                          evt.status === 'Submitted'
+                          evt.status === 'Completed'
+                            ? 'completed'
+                            : evt.status === 'Cancelled'
+                            ? 'cancelled'
+                            : evt.status === 'Submitted'
                             ? 'submitted'
                             : evt.status === 'Confirmed'
                             ? 'confirmed'
@@ -353,7 +377,7 @@ export default function ReportsPage() {
                             ? 'planning'
                             : 'idea'
                         }
-                        className="text-[10px]"
+                        className="text-[10px] shadow-2xs"
                       >
                         {evt.status}
                       </Badge>
